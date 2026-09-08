@@ -260,6 +260,39 @@ async function runAlertsAndAnalyticsTests() {
     console.log('✓ Test 4 passed: Settings RBAC strictly enforced across Admin, Operator, and Viewer.');
 
     // ----------------------------------------------------
+    // TEST 4b: Normal Values & Null Values Evaluation
+    // ----------------------------------------------------
+    console.log('Test 4b: Testing normal readings and null values produce 0 alerts...');
+    // A. Normal safe values
+    await alertService.evaluateReadings(bagA.id, [
+      {
+        coldTemperature: 4.0,
+        hotTemperature: 60.0,
+        humidity: 50.0,
+        recordedAt: new Date(Date.now() - 120000),
+      },
+    ]);
+    const alertsAfterNormal = await prisma.alert.findMany({
+      where: { deviceId: bagA.id },
+    });
+    assert.equal(alertsAfterNormal.length, 0, 'Normal values must not create any alerts');
+
+    // B. Null sensor values (missing fields must not generate alerts or fabricate data)
+    await alertService.evaluateReadings(bagA.id, [
+      {
+        coldTemperature: null,
+        hotTemperature: null,
+        humidity: null,
+        recordedAt: new Date(Date.now() - 90000),
+      },
+    ]);
+    const alertsAfterNull = await prisma.alert.findMany({
+      where: { deviceId: bagA.id },
+    });
+    assert.equal(alertsAfterNull.length, 0, 'Null values must never create any alerts');
+    console.log('✓ Test 4b passed: Normal values and null readings correctly produce 0 alerts.');
+
+    // ----------------------------------------------------
     // TEST 5: Alert Engine Evaluation & Severity (WARNING vs CRITICAL)
     // ----------------------------------------------------
     console.log('Test 5: Testing alert evaluation engine and severity calculation...');

@@ -7,14 +7,15 @@ export const prisma = new PrismaClient({
 });
 
 /**
- * Verifies real connection with PostgreSQL by executing a query.
+ * Checks connectivity with PostgreSQL database.
  */
 export async function checkDatabaseConnection(): Promise<boolean> {
   try {
     await prisma.$queryRaw`SELECT 1`;
+    logger.info('Database connection established successfully');
     return true;
   } catch (error) {
-    logger.error('Database connection check failed', { error });
+    logger.error('Failed to connect to database', { error });
     return false;
   }
 }

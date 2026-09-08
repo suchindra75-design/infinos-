@@ -8,6 +8,7 @@ import { settingsController } from '../settings/settings.controller.js';
 import { updateDeviceSettingsSchema } from '../settings/settings.validation.js';
 import { alertController } from '../alert/alert.controller.js';
 import { analyticsController } from '../analytics/analytics.controller.js';
+import { exportController } from '../export/export.controller.js';
 
 export const deviceRouter = Router();
 
@@ -94,6 +95,16 @@ deviceRouter.get('/:id/analytics/summary', (req, res, next) => {
 // Device Analytics Timeseries (GET: ADMIN, VIEWER, and OPERATOR if owned)
 deviceRouter.get('/:id/analytics/timeseries', (req, res, next) => {
   analyticsController.getTimeseries(req, res, next);
+});
+
+// Device Sensor Telemetry CSV Export (GET: ADMIN, VIEWER, and OPERATOR if owned)
+deviceRouter.get('/:id/export/csv', (req, res, next) => {
+  exportController.exportCsv(req, res, next);
+});
+
+// Device Sensor Report PDF Export (GET: ADMIN, VIEWER, and OPERATOR if owned)
+deviceRouter.get('/:id/export/pdf', (req, res, next) => {
+  exportController.exportPdf(req, res, next);
 });
 
 // Update device (ADMIN, OPERATOR only - with ownership enforcement in service)
