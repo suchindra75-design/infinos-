@@ -2,8 +2,26 @@ import { PrismaClient } from '@prisma/client';
 import { logger } from '../utils/logger.js';
 import { env } from './env.js';
 
-export const prisma = new PrismaClient({
-  log: env.NODE_ENV === 'development' ? ['warn', 'error'] : ['error'],
+let _prismaInstance: PrismaClient | null = null;
+
+export function getPrismaClient(): PrismaClient {
+  if (!_prismaInstance) {
+    _prismaInstance = new PrismaClient({
+      log: env.NODE_ENV === 'development' ? ['warn', 'error'] : ['error'],
+    });
+  }
+  return _prismaInstance;
+}
+
+export const prisma = new Proxy({} as PrismaClient, {
+  get(_target, prop, receiver) {
+    const client = getPrismaClient();
+    const value = Reflect.get(client, prop, receiver);
+    if (typeof value === 'function') {
+      return value.bind(client);
+    }
+    return value;
+  },
 });
 
 /**

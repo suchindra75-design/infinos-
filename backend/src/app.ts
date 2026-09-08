@@ -7,7 +7,11 @@ import { authRouter } from './modules/auth/auth.routes.js';
 import { deviceRouter } from './modules/device/device.routes.js';
 import { alertRouter } from './modules/alert/alert.routes.js';
 
-export function createApp(): Express {
+export interface CreateAppOptions {
+  skipCatchAll?: boolean;
+}
+
+export function createApp(options: CreateAppOptions = {}): Express {
   const app = express();
 
   app.use(cors({
@@ -46,13 +50,17 @@ export function createApp(): Express {
   // Alerts Management API v1 routes
   app.use('/api/v1/alerts', alertRouter);
 
-  // 404 handler
-  app.use(notFoundHandler);
+  // Only attach fallback handlers if not serving as part of unified server
+  if (!options.skipCatchAll) {
+    // 404 handler
+    app.use(notFoundHandler);
 
-  // Centralized error handler
-  app.use(errorHandler);
+    // Centralized error handler
+    app.use(errorHandler);
+  }
 
   return app;
 }
 
 export const app = createApp();
+export { express };
