@@ -1,0 +1,6 @@
+{
+  "name": "INFINOS Smart Delivery Bag Dashboard",
+  "description": "Backend foundation and PostgreSQL database infrastructure for INFINOS Smart Delivery Bag monitoring system.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

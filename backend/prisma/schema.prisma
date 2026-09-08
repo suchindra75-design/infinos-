@@ -1,0 +1,150 @@
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+enum UserRole {
+  ADMIN
+  OPERATOR
+  VIEWER
+}
+
+enum DeviceStatus {
+  ONLINE
+  STALE
+  OFFLINE
+}
+
+enum AlertType {
+  COLD_TEMPERATURE_LOW
+  COLD_TEMPERATURE_HIGH
+  HOT_TEMPERATURE_LOW
+  HOT_TEMPERATURE_HIGH
+  HUMIDITY_LOW
+  HUMIDITY_HIGH
+  HOT_TEMPERATURE
+  COLD_TEMPERATURE
+  HUMIDITY
+  DEVICE_OFFLINE
+  DATA_MISSING
+}
+
+enum AlertSeverity {
+  INFO
+  WARNING
+  CRITICAL
+}
+
+model User {
+  id           String    @id @default(uuid())
+  name         String
+  email        String    @unique
+  passwordHash String
+  role         UserRole  @default(VIEWER)
+  isActive     Boolean   @default(true)
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  acknowledgedAlerts Alert[]  @relation("AlertAcknowledgedBy")
+  resolvedAlerts     Alert[]  @relation("AlertResolvedBy")
+  devices            Device[] @relation("UserDevices")
+
+  @@map("users")
+}
+
+model Device {
+  id                  String       @id @default(uuid())
+  deviceCode          String       @unique
+  name                String
+  thingSpeakChannelId String
+  thingSpeakReadKey   String?
+  status              DeviceStatus @default(OFFLINE)
+  lastSeenAt          DateTime?
+  createdAt           DateTime     @default(now())
+  updatedAt           DateTime     @updatedAt
+  ownerId             String?
+
+  owner    User?           @relation("UserDevices", fields: [ownerId], references: [id], onDelete: SetNull)
+  readings SensorReading[]
+  settings DeviceSettings?
+  alerts   Alert[]
+
+  @@index([status])
+  @@index([ownerId])
+  @@map("devices")
+}
+
+model SensorReading {
+  id                String   @id @default(uuid())
+  deviceId          String
+  thingSpeakEntryId Int
+  recordedAt        DateTime
+  hotTemperature    Float?
+  coldTemperature   Float?
+  humidity          Float?
+  createdAt         DateTime @default(now())
+
+  device Device @relation(fields: [deviceId], references: [id], onDelete: Cascade)
+
+  @@unique([deviceId, thingSpeakEntryId])
+  @@index([deviceId])
+  @@index([recordedAt])
+  @@index([deviceId, recordedAt])
+  @@map("sensor_readings")
+}
+
+model DeviceSettings {
+  id                         String   @id @default(uuid())
+  deviceId                   String   @unique
+  coldTempMin                Float    @default(0.0)
+  coldTempMax                Float    @default(8.0)
+  hotTempMin                 Float    @default(50.0)
+  hotTempMax                 Float    @default(70.0)
+  humidityMin                Float    @default(20.0)
+  humidityMax                Float    @default(85.0)
+  alertsEnabled              Boolean  @default(true)
+  hotWarningThreshold        Float    @default(60.0)
+  hotCriticalThreshold       Float    @default(50.0)
+  coldWarningThreshold       Float    @default(4.0)
+  coldCriticalThreshold      Float    @default(8.0)
+  humidityWarningThreshold   Float    @default(70.0)
+  humidityCriticalThreshold  Float    @default(85.0)
+  offlineTimeoutSeconds      Int      @default(300)
+  createdAt                  DateTime @default(now())
+  updatedAt                  DateTime @updatedAt
+
+  device Device @relation(fields: [deviceId], references: [id], onDelete: Cascade)
+
+  @@map("device_settings")
+}
+
+model Alert {
+  id               String        @id @default(uuid())
+  deviceId         String
+  type             AlertType
+  severity         AlertSeverity
+  message          String
+  triggerValue     Float?
+  thresholdValue   Float?
+  triggeredAt      DateTime      @default(now())
+  acknowledgedAt   DateTime?
+  acknowledgedById String?
+  isResolved       Boolean       @default(false)
+  resolvedAt       DateTime?
+  resolvedById     String?
+
+  device         Device @relation(fields: [deviceId], references: [id], onDelete: Cascade)
+  acknowledgedBy User?  @relation("AlertAcknowledgedBy", fields: [acknowledgedById], references: [id], onDelete: SetNull)
+  resolvedBy     User?  @relation("AlertResolvedBy", fields: [resolvedById], references: [id], onDelete: SetNull)
+
+  @@index([deviceId])
+  @@index([triggeredAt])
+  @@index([deviceId, triggeredAt])
+  @@index([deviceId, isResolved])
+  @@index([deviceId, type, isResolved])
+  @@map("alerts")
+}
