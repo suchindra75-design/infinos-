@@ -37,7 +37,7 @@ async function startUnifiedServer() {
 
     // 4. Create Express app with skipCatchAll=true so frontend routes pass through
     const app = createApp({ skipCatchAll: true });
-    const PORT = 3000;
+    const PORT = env.PORT;
 
     // 5. Mount Vite middleware in development or static dist in production
     if (env.NODE_ENV !== 'production') {
