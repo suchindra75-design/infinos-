@@ -463,7 +463,7 @@ const DashboardContent: React.FC = () => {
                 />
 
                 {selectedDevice && (
-                  <>
+                  <div key={selectedDevice.id} className="space-y-4 sm:space-y-6 transition-all duration-300 animate-in fade-in-50">
                     {/* 2. Primary Temperature & Live Compartments */}
                     <LiveTelemetryCard
                       summary={summary}
@@ -497,7 +497,7 @@ const DashboardContent: React.FC = () => {
                       summary={summary}
                       isLoading={isTelemetryLoading}
                     />
-                  </>
+                  </div>
                 )}
               </>
             )}

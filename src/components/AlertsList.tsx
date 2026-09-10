@@ -153,7 +153,7 @@ export const AlertsList: React.FC<AlertsListProps> = ({
 
       {/* Alerts List */}
       {filteredAlerts.length === 0 ? (
-        <div className="p-6 sm:p-8 text-center bg-[#07080a] rounded-xl border border-white/[0.06]">
+        <div className="p-6 sm:p-8 text-center bg-[#07080a] rounded-xl border border-white/[0.06] animate-alert-enter">
           <CheckCircle2 className="w-7 h-7 sm:w-8 sm:h-8 text-emerald-400/80 mx-auto mb-2" />
           <p className="text-xs sm:text-sm font-semibold text-zinc-200 font-display">All Compartments Nominal</p>
           <p className="text-[11px] sm:text-xs text-zinc-500 font-body mt-0.5">
@@ -165,12 +165,12 @@ export const AlertsList: React.FC<AlertsListProps> = ({
           {filteredAlerts.map((alert) => (
             <div
               key={alert.id}
-              className={`p-3 rounded-xl border transition flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 ${
+              className={`p-3 rounded-xl border transition-all duration-300 animate-alert-enter flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 ${
                 alert.isResolved
                   ? 'bg-[#0a0b0e] border-white/[0.06] opacity-75'
                   : alert.severity === 'CRITICAL'
-                  ? 'bg-rose-950/20 border-rose-900/40'
-                  : 'bg-amber-950/20 border-amber-900/40'
+                  ? 'bg-rose-950/25 border-rose-900/50 shadow-sm shadow-rose-950/40 ring-1 ring-rose-500/20'
+                  : 'bg-amber-950/20 border-amber-900/40 shadow-sm shadow-amber-950/30'
               }`}
             >
               {/* Alert Content */}
@@ -186,7 +186,7 @@ export const AlertsList: React.FC<AlertsListProps> = ({
                     {alert.type.replace(/_/g, ' ')}
                   </span>
                   {alert.isResolved ? (
-                    <span className="inline-flex items-center gap-1 text-[9px] text-emerald-400 bg-emerald-500/10 px-1.5 py-0.5 rounded-full border border-emerald-500/30 font-bold uppercase">
+                    <span className="inline-flex items-center gap-1 text-[9px] text-emerald-400 bg-emerald-500/10 px-1.5 py-0.5 rounded-full border border-emerald-500/30 font-bold uppercase transition-all duration-300">
                       <Check className="w-2.5 h-2.5" /> Resolved
                     </span>
                   ) : (

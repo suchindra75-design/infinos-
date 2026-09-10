@@ -15,7 +15,7 @@ export const StatusBanner: React.FC<StatusBannerProps> = ({
 }) => {
   if (!backendConnected) {
     return (
-      <div className="bg-amber-950/30 border border-amber-500/30 rounded-xl p-3 sm:p-3.5 text-amber-200 text-xs flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2.5 shadow-lg shadow-black/40 font-body">
+      <div className="bg-amber-950/30 border border-amber-500/30 rounded-xl p-3 sm:p-3.5 text-amber-200 text-xs flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2.5 shadow-lg shadow-black/40 font-body animate-alert-enter">
         <div className="flex items-center gap-2.5">
           <div className="p-1.5 sm:p-2 rounded-lg bg-amber-500/10 border border-amber-500/25 text-amber-400 shrink-0">
             <WifiOff className="w-4 h-4" />
@@ -39,7 +39,7 @@ export const StatusBanner: React.FC<StatusBannerProps> = ({
 
   if (statusInfo && statusInfo.status === 'OFFLINE') {
     return (
-      <div className="bg-rose-950/25 border border-rose-500/30 rounded-xl p-3 text-rose-200 text-xs flex items-center justify-between gap-2.5 font-body shadow-md shadow-black/30">
+      <div className="bg-rose-950/25 border border-rose-500/30 rounded-xl p-3 text-rose-200 text-xs flex items-center justify-between gap-2.5 font-body shadow-md shadow-black/30 animate-alert-enter">
         <div className="flex items-center gap-2">
           <AlertTriangle className="w-4 h-4 text-rose-400 shrink-0" />
           <span className="text-[11px] sm:text-xs">
@@ -55,7 +55,7 @@ export const StatusBanner: React.FC<StatusBannerProps> = ({
 
   if (statusInfo && statusInfo.status === 'STALE') {
     return (
-      <div className="bg-amber-950/25 border border-amber-500/30 rounded-xl p-3 text-amber-200 text-xs flex items-center justify-between gap-2.5 font-body shadow-md shadow-black/30">
+      <div className="bg-amber-950/25 border border-amber-500/30 rounded-xl p-3 text-amber-200 text-xs flex items-center justify-between gap-2.5 font-body shadow-md shadow-black/30 animate-alert-enter">
         <div className="flex items-center gap-2">
           <Info className="w-4 h-4 text-amber-400 shrink-0" />
           <span className="text-[11px] sm:text-xs">

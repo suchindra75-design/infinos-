@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   ThermometerSnowflake,
   Flame,
@@ -6,7 +6,6 @@ import {
   Activity,
   Clock,
   AlertTriangle,
-  CheckCircle2,
 } from 'lucide-react';
 import { AnalyticsSummary, DeviceStatusResponse, DeviceSettings } from '../types';
 
@@ -18,6 +17,59 @@ interface LiveTelemetryProps {
   error: string | null;
 }
 
+/**
+ * Custom hook to smoothly interpolate live numeric sensor readouts.
+ * Operates purely on visual rendering layer without altering underlying API data.
+ */
+function useAnimatedNumber(value: number | null | undefined): number | null {
+  const [displayVal, setDisplayVal] = useState<number | null>(value ?? null);
+  const prevValRef = useRef<number | null>(value ?? null);
+
+  useEffect(() => {
+    if (value === null || value === undefined) {
+      setDisplayVal(null);
+      prevValRef.current = null;
+      return;
+    }
+
+    if (prevValRef.current === null) {
+      setDisplayVal(value);
+      prevValRef.current = value;
+      return;
+    }
+
+    const start = prevValRef.current;
+    const end = value;
+    if (start === end) return;
+
+    const duration = 500; // ms easing transition
+    const startTime = performance.now();
+    let animId: number;
+
+    const step = (now: number) => {
+      const elapsed = now - startTime;
+      const progress = Math.min(elapsed / duration, 1);
+      // Cubic ease out curve
+      const eased = 1 - Math.pow(1 - progress, 3);
+      const current = start + (end - start) * eased;
+
+      setDisplayVal(current);
+
+      if (progress < 1) {
+        animId = requestAnimationFrame(step);
+      } else {
+        setDisplayVal(end);
+        prevValRef.current = end;
+      }
+    };
+
+    animId = requestAnimationFrame(step);
+    return () => cancelAnimationFrame(animId);
+  }, [value]);
+
+  return displayVal;
+}
+
 export const LiveTelemetryCard: React.FC<LiveTelemetryProps> = ({
   summary,
   statusInfo,
@@ -25,8 +77,26 @@ export const LiveTelemetryCard: React.FC<LiveTelemetryProps> = ({
   isLoading,
   error,
 }) => {
-  const formatValue = (val: number | null | undefined, unit: string) => {
-    if (val === null || val === undefined) {
+  const latest = summary?.latest;
+  const animCold = useAnimatedNumber(latest?.coldTemperature);
+  const animHot = useAnimatedNumber(latest?.hotTemperature);
+  const animHumidity = useAnimatedNumber(latest?.humidity);
+
+  // Fresh reading pulse glow state
+  const [isFreshReading, setIsFreshReading] = useState<boolean>(false);
+  const prevTsRef = useRef<string | null>(summary?.latestReadingTimestamp || null);
+
+  useEffect(() => {
+    if (summary?.latestReadingTimestamp && summary.latestReadingTimestamp !== prevTsRef.current) {
+      prevTsRef.current = summary.latestReadingTimestamp;
+      setIsFreshReading(true);
+      const timer = setTimeout(() => setIsFreshReading(false), 1200);
+      return () => clearTimeout(timer);
+    }
+  }, [summary?.latestReadingTimestamp]);
+
+  const formatValue = (val: number | null, unit: string) => {
+    if (val === null) {
       return (
         <span className="text-zinc-600 font-data text-3xl sm:text-4xl" title="Sensor reading unavailable">
           —
@@ -34,7 +104,7 @@ export const LiveTelemetryCard: React.FC<LiveTelemetryProps> = ({
       );
     }
     return (
-      <div className="flex items-baseline gap-1.5">
+      <div className="flex items-baseline gap-1.5 transition-all duration-300">
         <span className="font-data tracking-tight font-extrabold text-4xl sm:text-5xl text-white">
           {val.toFixed(1)}
         </span>
@@ -87,7 +157,7 @@ export const LiveTelemetryCard: React.FC<LiveTelemetryProps> = ({
 
   if (error) {
     return (
-      <div className="bg-rose-950/25 border border-rose-900/50 rounded-xl p-4 sm:p-5 text-rose-300 flex items-center gap-3">
+      <div className="bg-rose-950/25 border border-rose-900/50 rounded-xl p-4 sm:p-5 text-rose-300 flex items-center gap-3 animate-in fade-in duration-200">
         <AlertTriangle className="w-5 h-5 text-rose-400 shrink-0" />
         <div className="text-xs sm:text-sm font-body">
           <p className="font-semibold text-rose-200">Telemetry Data Unavailable</p>
@@ -97,7 +167,6 @@ export const LiveTelemetryCard: React.FC<LiveTelemetryProps> = ({
     );
   }
 
-  const latest = summary?.latest;
   const coldStatus = getColdStatus(latest?.coldTemperature);
   const hotStatus = getHotStatus(latest?.hotTemperature);
   const humidityStatus = getHumidityStatus(latest?.humidity);
@@ -107,15 +176,19 @@ export const LiveTelemetryCard: React.FC<LiveTelemetryProps> = ({
       {/* Telemetry Header with Timestamps & Status */}
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-1.5 px-0.5">
         <div className="flex items-center gap-2">
-          <Activity className="w-4 h-4 text-[#ff6b00] shrink-0" />
+          <Activity className={`w-4 h-4 text-[#ff6b00] shrink-0 transition-transform duration-300 ${isFreshReading ? 'scale-125 text-orange-400' : ''}`} />
           <h2 className="text-xs sm:text-xs font-extrabold uppercase tracking-wider text-zinc-200 font-display">
             Live Compartment Telemetry
           </h2>
-          {isLoading && (
+          {isLoading ? (
             <span className="text-[9px] sm:text-[10px] uppercase font-bold tracking-wider px-2 py-0.5 rounded-full bg-orange-500/15 text-orange-400 border border-orange-500/30 animate-pulse">
               Syncing...
             </span>
-          )}
+          ) : isFreshReading ? (
+            <span className="text-[9px] sm:text-[10px] uppercase font-bold tracking-wider px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-400 border border-emerald-500/40 animate-in fade-in duration-200">
+              Fresh Data
+            </span>
+          ) : null}
         </div>
 
         <div className="flex items-center gap-2 sm:gap-3 text-[11px] sm:text-xs text-zinc-400 font-body">
@@ -132,11 +205,15 @@ export const LiveTelemetryCard: React.FC<LiveTelemetryProps> = ({
       {/* 3 Compartment Cards Grid */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3.5 sm:gap-4">
         {/* Cold Compartment Card */}
-        <div className="bg-[#0e1014] border border-white/[0.08] hover:border-[#00a3ff]/40 rounded-xl p-4 sm:p-5 transition relative overflow-hidden group shadow-lg shadow-black/40">
+        <div className={`bg-[#0e1014] border rounded-xl p-4 sm:p-5 transition-all duration-300 relative overflow-hidden group shadow-lg shadow-black/40 ${
+          isFreshReading
+            ? 'border-[#00a3ff]/60 shadow-[#00a3ff]/10'
+            : 'border-white/[0.08] hover:border-[#00a3ff]/40'
+        }`}>
           <div className="absolute top-0 left-0 w-1.5 h-full bg-[#00a3ff]" />
           <div className="flex items-center justify-between gap-2 mb-3">
             <div className="flex items-center gap-2.5 min-w-0">
-              <div className="w-8 h-8 rounded-lg bg-[#00a3ff]/10 border border-[#00a3ff]/25 flex items-center justify-center text-[#00a3ff] shrink-0">
+              <div className="w-8 h-8 rounded-lg bg-[#00a3ff]/10 border border-[#00a3ff]/25 flex items-center justify-center text-[#00a3ff] shrink-0 group-hover:scale-105 transition-transform">
                 <ThermometerSnowflake className="w-4 h-4" />
               </div>
               <span className="text-xs font-bold uppercase tracking-wider text-zinc-300 font-display truncate">
@@ -144,14 +221,14 @@ export const LiveTelemetryCard: React.FC<LiveTelemetryProps> = ({
               </span>
             </div>
             <span
-              className={`text-[9px] sm:text-[10px] uppercase font-bold px-2 py-0.5 rounded-full border shrink-0 ${coldStatus.color}`}
+              className={`text-[9px] sm:text-[10px] uppercase font-bold px-2 py-0.5 rounded-full border shrink-0 transition-colors duration-300 ${coldStatus.color}`}
             >
               {coldStatus.label}
             </span>
           </div>
 
           <div className="my-3 pl-1">
-            {formatValue(latest?.coldTemperature, '°C')}
+            {formatValue(animCold, '°C')}
           </div>
 
           <div className="pt-3 border-t border-white/[0.06] flex items-center justify-between text-xs text-zinc-400 font-body">
@@ -163,11 +240,15 @@ export const LiveTelemetryCard: React.FC<LiveTelemetryProps> = ({
         </div>
 
         {/* Hot Compartment Card */}
-        <div className="bg-[#0e1014] border border-white/[0.08] hover:border-orange-500/40 rounded-xl p-4 sm:p-5 transition relative overflow-hidden group shadow-lg shadow-black/40">
+        <div className={`bg-[#0e1014] border rounded-xl p-4 sm:p-5 transition-all duration-300 relative overflow-hidden group shadow-lg shadow-black/40 ${
+          isFreshReading
+            ? 'border-[#ff6b00]/60 shadow-[#ff6b00]/10'
+            : 'border-white/[0.08] hover:border-orange-500/40'
+        }`}>
           <div className="absolute top-0 left-0 w-1.5 h-full bg-[#ff6b00]" />
           <div className="flex items-center justify-between gap-2 mb-3">
             <div className="flex items-center gap-2.5 min-w-0">
-              <div className="w-8 h-8 rounded-lg bg-orange-500/10 border border-orange-500/25 flex items-center justify-center text-[#ff6b00] shrink-0">
+              <div className="w-8 h-8 rounded-lg bg-orange-500/10 border border-orange-500/25 flex items-center justify-center text-[#ff6b00] shrink-0 group-hover:scale-105 transition-transform">
                 <Flame className="w-4 h-4" />
               </div>
               <span className="text-xs font-bold uppercase tracking-wider text-zinc-300 font-display truncate">
@@ -175,14 +256,14 @@ export const LiveTelemetryCard: React.FC<LiveTelemetryProps> = ({
               </span>
             </div>
             <span
-              className={`text-[9px] sm:text-[10px] uppercase font-bold px-2 py-0.5 rounded-full border shrink-0 ${hotStatus.color}`}
+              className={`text-[9px] sm:text-[10px] uppercase font-bold px-2 py-0.5 rounded-full border shrink-0 transition-colors duration-300 ${hotStatus.color}`}
             >
               {hotStatus.label}
             </span>
           </div>
 
           <div className="my-3 pl-1">
-            {formatValue(latest?.hotTemperature, '°C')}
+            {formatValue(animHot, '°C')}
           </div>
 
           <div className="pt-3 border-t border-white/[0.06] flex items-center justify-between text-xs text-zinc-400 font-body">
@@ -194,11 +275,15 @@ export const LiveTelemetryCard: React.FC<LiveTelemetryProps> = ({
         </div>
 
         {/* Relative Humidity Card */}
-        <div className="bg-[#0e1014] border border-white/[0.08] hover:border-sky-500/40 rounded-xl p-4 sm:p-5 transition relative overflow-hidden group shadow-lg shadow-black/40 sm:col-span-2 lg:col-span-1">
+        <div className={`bg-[#0e1014] border rounded-xl p-4 sm:p-5 transition-all duration-300 relative overflow-hidden group shadow-lg shadow-black/40 sm:col-span-2 lg:col-span-1 ${
+          isFreshReading
+            ? 'border-sky-500/60 shadow-sky-500/10'
+            : 'border-white/[0.08] hover:border-sky-500/40'
+        }`}>
           <div className="absolute top-0 left-0 w-1.5 h-full bg-sky-500" />
           <div className="flex items-center justify-between gap-2 mb-3">
             <div className="flex items-center gap-2.5 min-w-0">
-              <div className="w-8 h-8 rounded-lg bg-sky-500/10 border border-sky-500/25 flex items-center justify-center text-sky-400 shrink-0">
+              <div className="w-8 h-8 rounded-lg bg-sky-500/10 border border-sky-500/25 flex items-center justify-center text-sky-400 shrink-0 group-hover:scale-105 transition-transform">
                 <Droplets className="w-4 h-4" />
               </div>
               <span className="text-xs font-bold uppercase tracking-wider text-zinc-300 font-display truncate">
@@ -206,14 +291,14 @@ export const LiveTelemetryCard: React.FC<LiveTelemetryProps> = ({
               </span>
             </div>
             <span
-              className={`text-[9px] sm:text-[10px] uppercase font-bold px-2 py-0.5 rounded-full border shrink-0 ${humidityStatus.color}`}
+              className={`text-[9px] sm:text-[10px] uppercase font-bold px-2 py-0.5 rounded-full border shrink-0 transition-colors duration-300 ${humidityStatus.color}`}
             >
               {humidityStatus.label}
             </span>
           </div>
 
           <div className="my-3 pl-1">
-            {formatValue(latest?.humidity, '%')}
+            {formatValue(animHumidity, '%')}
           </div>
 
           <div className="pt-3 border-t border-white/[0.06] flex items-center justify-between text-xs text-zinc-400 font-body">
@@ -227,4 +312,3 @@ export const LiveTelemetryCard: React.FC<LiveTelemetryProps> = ({
     </div>
   );
 };
-

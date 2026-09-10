@@ -30,7 +30,7 @@ export const TelemetryChart: React.FC<TelemetryChartProps> = ({
   // SVG dimensions
   const width = 800;
   const height = 260;
-  const padding = { top: 20, right: 25, bottom: 35, left: 45 };
+  const padding = { top: 25, right: 25, bottom: 35, left: 45 };
 
   const chartWidth = width - padding.left - padding.right;
   const chartHeight = height - padding.top - padding.bottom;
@@ -134,13 +134,27 @@ export const TelemetryChart: React.FC<TelemetryChartProps> = ({
     return d;
   };
 
+  // Generate SVG gradient area path under line
+  const generateAreaPath = (metricKey: 'coldTemperature' | 'hotTemperature' | 'humidity') => {
+    const linePath = generatePath(metricKey);
+    if (!linePath) return '';
+    const lastX = getX(readings.length - 1);
+    const firstX = getX(0);
+    const bottomY = padding.top + chartHeight;
+    return `${linePath} L ${lastX} ${bottomY} L ${firstX} ${bottomY} Z`;
+  };
+
+  // Latest reading position for animated playhead
+  const latestIndex = readings.length - 1;
+  const latestX = readings.length > 0 ? getX(latestIndex) : 0;
+
   return (
-    <div className="bg-[#0e1014] border border-white/[0.08] rounded-xl p-3.5 sm:p-5 space-y-3 sm:space-y-4 shadow-lg shadow-black/30">
+    <div className="bg-[#0e1014] border border-white/[0.08] rounded-xl p-3.5 sm:p-5 space-y-3 sm:space-y-4 shadow-lg shadow-black/30 transition-all duration-300">
       {/* Top Header & Range Selection */}
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2.5">
         <div className="flex items-center gap-2">
-          <LineChart className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-[#ff6b00] shrink-0" />
-          <h3 className="text-[11px] sm:text-xs font-bold uppercase tracking-wider text-zinc-300 font-display">
+          <LineChart className="w-4 h-4 text-[#ff6b00] shrink-0" />
+          <h3 className="text-xs sm:text-xs font-extrabold uppercase tracking-wider text-zinc-200 font-display">
             Compartment Telemetry History
           </h3>
           <span className="text-[10px] sm:text-xs text-zinc-500 font-data">
@@ -154,9 +168,9 @@ export const TelemetryChart: React.FC<TelemetryChartProps> = ({
           <div className="flex items-center bg-[#07080a] p-0.5 rounded-lg border border-white/[0.08] text-[11px] sm:text-xs font-body">
             <button
               onClick={() => setActiveChannel('all')}
-              className={`px-2 py-1 rounded font-medium transition cursor-pointer ${
+              className={`px-2.5 py-1 rounded font-medium transition-all duration-200 cursor-pointer ${
                 activeChannel === 'all'
-                  ? 'bg-zinc-800 text-white'
+                  ? 'bg-zinc-800 text-white font-semibold shadow-xs'
                   : 'text-zinc-400 hover:text-zinc-200'
               }`}
             >
@@ -164,30 +178,30 @@ export const TelemetryChart: React.FC<TelemetryChartProps> = ({
             </button>
             <button
               onClick={() => setActiveChannel('cold')}
-              className={`px-2 py-1 rounded font-medium transition cursor-pointer ${
+              className={`px-2.5 py-1 rounded font-medium transition-all duration-200 cursor-pointer ${
                 activeChannel === 'cold'
-                  ? 'bg-[#00a3ff]/20 text-[#00a3ff] border border-[#00a3ff]/40'
-                  : 'text-[#00a3ff] hover:opacity-80'
+                  ? 'bg-[#00a3ff]/20 text-[#00a3ff] border border-[#00a3ff]/40 font-semibold shadow-xs'
+                  : 'text-[#00a3ff] opacity-70 hover:opacity-100'
               }`}
             >
               Cold
             </button>
             <button
               onClick={() => setActiveChannel('hot')}
-              className={`px-2 py-1 rounded font-medium transition cursor-pointer ${
+              className={`px-2.5 py-1 rounded font-medium transition-all duration-200 cursor-pointer ${
                 activeChannel === 'hot'
-                  ? 'bg-orange-500/20 text-[#ff6b00] border border-orange-500/40'
-                  : 'text-orange-400 hover:opacity-80'
+                  ? 'bg-orange-500/20 text-[#ff6b00] border border-orange-500/40 font-semibold shadow-xs'
+                  : 'text-orange-400 opacity-70 hover:opacity-100'
               }`}
             >
               Hot
             </button>
             <button
               onClick={() => setActiveChannel('humidity')}
-              className={`px-2 py-1 rounded font-medium transition cursor-pointer ${
+              className={`px-2.5 py-1 rounded font-medium transition-all duration-200 cursor-pointer ${
                 activeChannel === 'humidity'
-                  ? 'bg-sky-500/20 text-sky-400 border border-sky-500/40'
-                  : 'text-sky-400 hover:opacity-80'
+                  ? 'bg-sky-500/20 text-sky-400 border border-sky-500/40 font-semibold shadow-xs'
+                  : 'text-sky-400 opacity-70 hover:opacity-100'
               }`}
             >
               Hum
@@ -196,46 +210,19 @@ export const TelemetryChart: React.FC<TelemetryChartProps> = ({
 
           {/* Time Range Selector */}
           <div className="flex items-center bg-[#07080a] p-0.5 rounded-lg border border-white/[0.08] text-[11px] sm:text-xs font-body">
-            <button
-              onClick={() => onChangeTimeRange('1h')}
-              className={`px-2 py-1 rounded font-medium transition cursor-pointer ${
-                timeRange === '1h'
-                  ? 'bg-gradient-to-r from-orange-500 to-orange-600 text-white font-semibold'
-                  : 'text-zinc-400 hover:text-zinc-200'
-              }`}
-            >
-              1h
-            </button>
-            <button
-              onClick={() => onChangeTimeRange('6h')}
-              className={`px-2 py-1 rounded font-medium transition cursor-pointer ${
-                timeRange === '6h'
-                  ? 'bg-gradient-to-r from-orange-500 to-orange-600 text-white font-semibold'
-                  : 'text-zinc-400 hover:text-zinc-200'
-              }`}
-            >
-              6h
-            </button>
-            <button
-              onClick={() => onChangeTimeRange('24h')}
-              className={`px-2 py-1 rounded font-medium transition cursor-pointer ${
-                timeRange === '24h'
-                  ? 'bg-gradient-to-r from-orange-500 to-orange-600 text-white font-semibold'
-                  : 'text-zinc-400 hover:text-zinc-200'
-              }`}
-            >
-              24h
-            </button>
-            <button
-              onClick={() => onChangeTimeRange('7d')}
-              className={`px-2 py-1 rounded font-medium transition cursor-pointer ${
-                timeRange === '7d'
-                  ? 'bg-gradient-to-r from-orange-500 to-orange-600 text-white font-semibold'
-                  : 'text-zinc-400 hover:text-zinc-200'
-              }`}
-            >
-              7d
-            </button>
+            {(['1h', '6h', '24h', '7d'] as const).map((range) => (
+              <button
+                key={range}
+                onClick={() => onChangeTimeRange(range)}
+                className={`px-2.5 py-1 rounded font-medium transition-all duration-200 cursor-pointer ${
+                  timeRange === range
+                    ? 'bg-gradient-to-r from-orange-500 to-orange-600 text-white font-semibold shadow-xs'
+                    : 'text-zinc-400 hover:text-zinc-200'
+                }`}
+              >
+                {range}
+              </button>
+            ))}
           </div>
         </div>
       </div>
@@ -255,7 +242,7 @@ export const TelemetryChart: React.FC<TelemetryChartProps> = ({
           </span>
         </div>
       ) : (
-        <div className="relative overflow-hidden w-full touch-pan-y">
+        <div className="relative overflow-hidden w-full touch-pan-y animate-in fade-in duration-300">
           <svg
             ref={svgRef}
             viewBox={`0 0 ${width} ${height}`}
@@ -264,6 +251,22 @@ export const TelemetryChart: React.FC<TelemetryChartProps> = ({
             onTouchStart={handleTouch}
             onTouchMove={handleTouch}
           >
+            <defs>
+              {/* Gradient fills for curves */}
+              <linearGradient id="coldGradient" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="0%" stopColor="#00a3ff" stopOpacity="0.25" />
+                <stop offset="100%" stopColor="#00a3ff" stopOpacity="0.0" />
+              </linearGradient>
+              <linearGradient id="hotGradient" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="0%" stopColor="#ff6b00" stopOpacity="0.25" />
+                <stop offset="100%" stopColor="#ff6b00" stopOpacity="0.0" />
+              </linearGradient>
+              <linearGradient id="humidityGradient" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="0%" stopColor="#38bdf8" stopOpacity="0.2" />
+                <stop offset="100%" stopColor="#38bdf8" stopOpacity="0.0" />
+              </linearGradient>
+            </defs>
+
             {/* Grid Lines */}
             {[0, 0.25, 0.5, 0.75, 1].map((ratio) => {
               const y = padding.top + ratio * chartHeight;
@@ -320,15 +323,43 @@ export const TelemetryChart: React.FC<TelemetryChartProps> = ({
               </>
             )}
 
+            {/* Gradient Area Fills */}
+            {(activeChannel === 'all' || activeChannel === 'cold') && (
+              <path
+                d={generateAreaPath('coldTemperature')}
+                fill="url(#coldGradient)"
+                className="transition-opacity duration-300"
+                style={{ opacity: activeChannel === 'all' || activeChannel === 'cold' ? 1 : 0.2 }}
+              />
+            )}
+            {(activeChannel === 'all' || activeChannel === 'hot') && (
+              <path
+                d={generateAreaPath('hotTemperature')}
+                fill="url(#hotGradient)"
+                className="transition-opacity duration-300"
+                style={{ opacity: activeChannel === 'all' || activeChannel === 'hot' ? 1 : 0.2 }}
+              />
+            )}
+            {(activeChannel === 'all' || activeChannel === 'humidity') && (
+              <path
+                d={generateAreaPath('humidity')}
+                fill="url(#humidityGradient)"
+                className="transition-opacity duration-300"
+                style={{ opacity: activeChannel === 'all' || activeChannel === 'humidity' ? 1 : 0.2 }}
+              />
+            )}
+
             {/* Cold Line */}
             {(activeChannel === 'all' || activeChannel === 'cold') && (
               <path
                 d={generatePath('coldTemperature')}
                 fill="none"
                 stroke="#00a3ff"
-                strokeWidth={2.4}
+                strokeWidth={activeChannel === 'cold' ? 3 : 2.4}
                 strokeLinecap="round"
                 strokeLinejoin="round"
+                className="chart-path-transition"
+                style={{ opacity: activeChannel === 'all' || activeChannel === 'cold' ? 1 : 0.2 }}
               />
             )}
 
@@ -338,9 +369,11 @@ export const TelemetryChart: React.FC<TelemetryChartProps> = ({
                 d={generatePath('hotTemperature')}
                 fill="none"
                 stroke="#ff6b00"
-                strokeWidth={2.4}
+                strokeWidth={activeChannel === 'hot' ? 3 : 2.4}
                 strokeLinecap="round"
                 strokeLinejoin="round"
+                className="chart-path-transition"
+                style={{ opacity: activeChannel === 'all' || activeChannel === 'hot' ? 1 : 0.2 }}
               />
             )}
 
@@ -350,10 +383,33 @@ export const TelemetryChart: React.FC<TelemetryChartProps> = ({
                 d={generatePath('humidity')}
                 fill="none"
                 stroke="#38bdf8"
-                strokeWidth={2.4}
+                strokeWidth={activeChannel === 'humidity' ? 3 : 2.4}
                 strokeLinecap="round"
                 strokeLinejoin="round"
+                className="chart-path-transition"
+                style={{ opacity: activeChannel === 'all' || activeChannel === 'humidity' ? 1 : 0.2 }}
               />
+            )}
+
+            {/* Live Playhead / Current Time Line */}
+            {readings.length > 0 && !hoveredPoint && (
+              <g className="animate-playhead">
+                <line
+                  x1={latestX}
+                  y1={padding.top}
+                  x2={latestX}
+                  y2={padding.top + chartHeight}
+                  stroke="rgba(255, 107, 0, 0.5)"
+                  strokeWidth={1.5}
+                  strokeDasharray="3 3"
+                />
+                <circle
+                  cx={latestX}
+                  cy={padding.top + 4}
+                  r={3}
+                  fill="#ff6b00"
+                />
+              </g>
             )}
 
             {/* Interactive Points / Hover Triggers */}
@@ -382,22 +438,24 @@ export const TelemetryChart: React.FC<TelemetryChartProps> = ({
 
             {/* Active Hover Indicator Line */}
             {hoveredPoint && (
-              <line
-                x1={hoveredPoint.x}
-                y1={padding.top}
-                x2={hoveredPoint.x}
-                y2={padding.top + chartHeight}
-                stroke="rgba(255, 107, 0, 0.4)"
-                strokeWidth={1.5}
-                strokeDasharray="3 3"
-              />
+              <g>
+                <line
+                  x1={hoveredPoint.x}
+                  y1={padding.top}
+                  x2={hoveredPoint.x}
+                  y2={padding.top + chartHeight}
+                  stroke="rgba(255, 107, 0, 0.7)"
+                  strokeWidth={1.5}
+                  strokeDasharray="2 2"
+                />
+              </g>
             )}
           </svg>
 
-          {/* Hover Tooltip Popup (Clamped) */}
+          {/* Hover Tooltip Popup (Clamped with smooth position transition) */}
           {hoveredPoint && (
             <div
-              className="absolute z-30 bg-[#08090b]/95 border border-white/[0.12] rounded-lg p-2.5 shadow-2xl pointer-events-none text-xs text-zinc-200 backdrop-blur-md max-w-[200px]"
+              className="absolute z-30 bg-[#08090b]/95 border border-white/[0.15] rounded-lg p-2.5 shadow-2xl pointer-events-none text-xs text-zinc-200 backdrop-blur-md max-w-[200px] transition-all duration-150 ease-out"
               style={{
                 left: `${Math.min(Math.max((hoveredPoint.x / width) * 100, 15), 75)}%`,
                 top: '8px',
@@ -445,19 +503,28 @@ export const TelemetryChart: React.FC<TelemetryChartProps> = ({
       )}
 
       {/* Visual Chart Legend */}
-      <div className="pt-2 border-t border-white/[0.06] flex flex-wrap items-center justify-center gap-x-4 gap-y-1.5 text-[11px] sm:text-xs text-zinc-400 font-body">
-        <span className="flex items-center gap-1.5">
-          <span className="w-2.5 h-1 bg-[#00a3ff] rounded-full" />
+      <div className="pt-2 border-t border-white/[0.06] flex flex-wrap items-center justify-center gap-x-5 gap-y-1.5 text-[11px] sm:text-xs text-zinc-400 font-body">
+        <button
+          onClick={() => setActiveChannel(activeChannel === 'cold' ? 'all' : 'cold')}
+          className={`flex items-center gap-1.5 cursor-pointer transition ${activeChannel === 'cold' ? 'text-[#00a3ff] font-bold' : 'hover:text-zinc-200'}`}
+        >
+          <span className="w-3 h-1 bg-[#00a3ff] rounded-full" />
           <span>Cold (°C)</span>
-        </span>
-        <span className="flex items-center gap-1.5">
-          <span className="w-2.5 h-1 bg-[#ff6b00] rounded-full" />
+        </button>
+        <button
+          onClick={() => setActiveChannel(activeChannel === 'hot' ? 'all' : 'hot')}
+          className={`flex items-center gap-1.5 cursor-pointer transition ${activeChannel === 'hot' ? 'text-[#ff6b00] font-bold' : 'hover:text-zinc-200'}`}
+        >
+          <span className="w-3 h-1 bg-[#ff6b00] rounded-full" />
           <span>Hot (°C)</span>
-        </span>
-        <span className="flex items-center gap-1.5">
-          <span className="w-2.5 h-1 bg-sky-400 rounded-full" />
+        </button>
+        <button
+          onClick={() => setActiveChannel(activeChannel === 'humidity' ? 'all' : 'humidity')}
+          className={`flex items-center gap-1.5 cursor-pointer transition ${activeChannel === 'humidity' ? 'text-sky-400 font-bold' : 'hover:text-zinc-200'}`}
+        >
+          <span className="w-3 h-1 bg-sky-400 rounded-full" />
           <span>Humidity (%)</span>
-        </span>
+        </button>
       </div>
     </div>
   );
