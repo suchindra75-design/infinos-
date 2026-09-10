@@ -73,23 +73,21 @@ export const Header: React.FC<HeaderProps> = ({
         <div className="flex items-center gap-3 sm:gap-6 min-w-0">
           {/* Logo */}
           <div
-            className="flex items-center gap-2 sm:gap-3 shrink-0 cursor-pointer select-none"
+            className="flex items-center gap-2.5 sm:gap-3.5 shrink-0 cursor-pointer select-none"
             onClick={() => onSelectNavTab('dashboard')}
           >
-            <div className="h-8 sm:h-9 w-auto flex items-center justify-center rounded-lg bg-black/40 p-1 border border-white/10 shrink-0">
-              <img
-                src={logoImg}
-                alt="INFINOS Logo"
-                className="h-full w-auto object-contain rounded"
-              />
-            </div>
-            <div className="flex flex-col">
-              <div className="flex items-center gap-1.5 sm:gap-2">
-                <span className="font-display font-extrabold tracking-tight text-base sm:text-lg leading-none text-white">
+            <img
+              src={logoImg}
+              alt="INFINOS Official Logo"
+              className="h-8 sm:h-10 w-auto object-contain rounded-md shadow-md border border-white/10 shrink-0"
+            />
+            <div className="flex flex-col justify-center">
+              <div className="flex items-center gap-2">
+                <span className="font-display font-black tracking-tight text-base sm:text-xl leading-none text-white">
                   INFI<span className="text-[#ff6b00]">NOS</span>
                 </span>
                 {/* LIVE Status Pill */}
-                <div className="inline-flex items-center gap-1 px-1.5 sm:px-2 py-0.5 rounded-full bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 text-[9px] sm:text-[10px] font-bold uppercase tracking-wider">
+                <div className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 text-[9px] sm:text-[10px] font-bold uppercase tracking-wider">
                   <span className="relative flex h-1.5 w-1.5">
                     <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
                     <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-emerald-500"></span>
@@ -97,8 +95,8 @@ export const Header: React.FC<HeaderProps> = ({
                   LIVE
                 </div>
               </div>
-              <span className="text-[10px] text-zinc-400 font-body leading-none mt-0.5 hidden sm:block">
-                Smart Delivery Bag Telemetry
+              <span className="text-[10px] text-zinc-400 font-body leading-none mt-1 hidden sm:block">
+                Smart Delivery Bag Telemetry Platform
               </span>
             </div>
           </div>
