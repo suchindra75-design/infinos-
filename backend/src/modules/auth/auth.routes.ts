@@ -26,8 +26,10 @@ authRouter.get('/me', authenticate, (req, res, next) => {
   authController.getMe(req, res, next);
 });
 
+const adminRole = UserRole?.ADMIN || ('ADMIN' as const);
+
 // Role-protected route example for administrative access validation
-authRouter.get('/admin-only', authenticate, requireRole(UserRole.ADMIN), (req, res) => {
+authRouter.get('/admin-only', authenticate, requireRole(adminRole), (req, res) => {
   res.status(200).json({
     success: true,
     data: {

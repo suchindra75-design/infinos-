@@ -19,49 +19,59 @@ export async function ensureDevPostgres(): Promise<void> {
 
   // If a remote DATABASE_URL is explicitly set (e.g., Cloud SQL or remote host), skip local bootstrap
   const dbUrl = process.env.DATABASE_URL || env.DATABASE_URL;
+  process.env.DATABASE_URL = dbUrl;
+
   if (dbUrl && !dbUrl.includes('localhost') && !dbUrl.includes('127.0.0.1')) {
     logger.info('External DATABASE_URL configured, skipping local PostgreSQL bootstrap');
     return;
   }
 
+  // Check if PostgreSQL binaries exist on host
+  if (!fs.existsSync('/usr/lib/postgresql/15/bin/initdb')) {
+    logger.info('Local PostgreSQL binary not present in container; proceeding with configured DATABASE_URL');
+    return;
+  }
+
   try {
     // 1. Check if postgres is already running and responsive
+    let isRunning = false;
     try {
       execSync('/usr/lib/postgresql/15/bin/pg_isready -h localhost -p 5432', { stdio: 'ignore' });
+      isRunning = true;
       logger.info('PostgreSQL is already active on localhost:5432');
-      process.env.DATABASE_URL = process.env.DATABASE_URL || 'postgresql://postgres:password@localhost:5432/infinos';
-      return;
     } catch {
-      // not yet running, proceed with development initialization
+      isRunning = false;
     }
 
-    // 2. Ensure socket directory exists
-    if (!fs.existsSync('/var/run/postgresql')) {
-      try {
-        execSync('mkdir -p /var/run/postgresql && chown -R node:node /var/run/postgresql || true', { stdio: 'ignore' });
-      } catch {
-        // ignore if permissions prevent
+    if (!isRunning) {
+      // 2. Ensure socket directory exists
+      if (!fs.existsSync('/var/run/postgresql')) {
+        try {
+          execSync('mkdir -p /var/run/postgresql && chown -R node:node /var/run/postgresql || true', { stdio: 'ignore' });
+        } catch {
+          // ignore if permissions prevent
+        }
       }
-    }
 
-    // 3. Ensure cluster directory exists and is initialized
-    if (!fs.existsSync('/tmp/pgdata/PG_VERSION')) {
-      logger.info('Initializing development PostgreSQL cluster in /tmp/pgdata...');
-      execSync('mkdir -p /tmp/pgdata && chown -R node:node /tmp/pgdata', { stdio: 'ignore' });
-      execSync('su - node -c "/usr/lib/postgresql/15/bin/initdb -D /tmp/pgdata --auth-local=trust --auth-host=trust"', { stdio: 'ignore' });
-    }
+      // 3. Ensure cluster directory exists and is initialized
+      if (!fs.existsSync('/tmp/pgdata/PG_VERSION')) {
+        logger.info('Initializing development PostgreSQL cluster in /tmp/pgdata...');
+        execSync('mkdir -p /tmp/pgdata && chown -R node:node /tmp/pgdata', { stdio: 'ignore' });
+        execSync('su - node -c "/usr/lib/postgresql/15/bin/initdb -D /tmp/pgdata --auth-local=trust --auth-host=trust"', { stdio: 'ignore' });
+      }
 
-    // 4. Start postgres service as user node
-    logger.info('Starting development PostgreSQL service...');
-    execSync('su - node -c "/usr/lib/postgresql/15/bin/pg_ctl -D /tmp/pgdata -l /tmp/pgdata/logfile start"', { stdio: 'ignore' });
+      // 4. Start postgres service as user node
+      logger.info('Starting development PostgreSQL service...');
+      execSync('su - node -c "/usr/lib/postgresql/15/bin/pg_ctl -D /tmp/pgdata -l /tmp/pgdata/logfile start"', { stdio: 'ignore' });
 
-    // Wait for server readiness
-    for (let i = 0; i < 20; i++) {
-      try {
-        execSync('/usr/lib/postgresql/15/bin/pg_isready -h localhost -p 5432', { stdio: 'ignore' });
-        break;
-      } catch {
-        await new Promise((r) => setTimeout(r, 200));
+      // Wait for server readiness
+      for (let i = 0; i < 20; i++) {
+        try {
+          execSync('/usr/lib/postgresql/15/bin/pg_isready -h localhost -p 5432', { stdio: 'ignore' });
+          break;
+        } catch {
+          await new Promise((r) => setTimeout(r, 200));
+        }
       }
     }
 
@@ -80,7 +90,7 @@ export async function ensureDevPostgres(): Promise<void> {
 
     // 6. Ensure Prisma client is generated
     try {
-      execSync('node node_modules/.bun/prisma@5.22.0/node_modules/prisma/build/index.js generate --schema=backend/prisma/schema.prisma || npx prisma generate --schema=backend/prisma/schema.prisma', { stdio: 'ignore' });
+      execSync('npx prisma generate --schema=backend/prisma/schema.prisma', { stdio: 'ignore' });
     } catch {
       // ignore
     }
@@ -88,13 +98,24 @@ export async function ensureDevPostgres(): Promise<void> {
     // 7. Ensure migrations are applied using existing migration history
     process.env.DATABASE_URL = process.env.DATABASE_URL || 'postgresql://postgres:password@localhost:5432/infinos';
     try {
-      execSync('node backend/node_modules/prisma/build/index.js migrate deploy --schema=backend/prisma/schema.prisma', {
+      execSync('npx prisma migrate deploy --schema=backend/prisma/schema.prisma', {
         env: { ...process.env, DATABASE_URL: process.env.DATABASE_URL },
         stdio: 'ignore',
       });
       logger.info('Prisma migrations applied to development database');
     } catch (migErr) {
       logger.warn('Prisma migrate deploy notice', { error: migErr });
+    }
+
+    // 8. Ensure development admin seed exists
+    try {
+      execSync('npx tsx backend/prisma/seed.ts', {
+        env: { ...process.env, DATABASE_URL: process.env.DATABASE_URL },
+        stdio: 'ignore',
+      });
+      logger.info('Development admin user seeded/verified');
+    } catch {
+      // ignore if already seeded
     }
 
     logger.info('Development PostgreSQL initialized successfully');

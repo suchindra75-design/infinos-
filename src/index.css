@@ -1,1 +1,83 @@
 @import "tailwindcss";
+
+@theme {
+  --font-sans: "DM Sans", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  --font-display: "Syne", -apple-system, BlinkMacSystemFont, sans-serif;
+  --font-mono: "JetBrains Mono", monospace;
+  --color-infinos-bg: #07080a;
+  --color-infinos-surface: #0e1014;
+  --color-infinos-surface-elevated: #13161c;
+  --color-infinos-border: rgba(255, 255, 255, 0.08);
+  --color-infinos-border-active: rgba(255, 107, 0, 0.35);
+  --color-infinos-orange: #ff6b00;
+  --color-infinos-orange-light: #ff8533;
+  --color-infinos-orange-dark: #e05e00;
+  --color-infinos-blue: #00a3ff;
+  --color-infinos-green: #10b981;
+  --color-infinos-red: #ef4444;
+}
+
+body {
+  font-family: var(--font-sans);
+  background-color: #07080a;
+  color: #e2e8f0;
+  overflow-x: hidden;
+}
+
+/* Typography Helpers */
+.font-display {
+  font-family: "Syne", sans-serif;
+}
+
+.font-body {
+  font-family: "DM Sans", sans-serif;
+}
+
+.font-data {
+  font-family: "JetBrains Mono", monospace;
+}
+
+/* INFINOS Subtle Orange Grid Pattern */
+.infinos-grid-bg {
+  background-color: #07080a;
+  background-image:
+    radial-gradient(ellipse 90% 40% at 50% 0%, rgba(255, 107, 0, 0.1) 0%, transparent 65%),
+    linear-gradient(to right, rgba(255, 107, 0, 0.035) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(255, 107, 0, 0.035) 1px, transparent 1px);
+  background-size: 100% 100%, 28px 28px, 28px 28px;
+}
+
+/* Card Surface Styling */
+.infinos-card {
+  background: #0e1014;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 12px;
+  transition: all 0.2s ease-in-out;
+}
+
+.infinos-card:hover {
+  border-color: rgba(255, 107, 0, 0.22);
+}
+
+.infinos-card-header {
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+/* Custom Scrollbars */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: #07080a;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #1c2027;
+  border-radius: 3px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #ff6b00;
+}

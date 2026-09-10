@@ -14,32 +14,29 @@ export interface CreateAppOptions {
 export function createApp(options: CreateAppOptions = {}): Express {
   const app = express();
 
+  // Configure Express trust proxy so proxy-supplied client IP headers (X-Forwarded-For)
+  // are handled safely for both AI Studio development and Render production environments.
+  app.set('trust proxy', env.TRUST_PROXY);
+
   app.use(cors({
     origin: env.CORS_ORIGIN,
     credentials: true,
   }));
   app.use(express.json());
 
-  // Health endpoint
-  app.get('/health', async (req: Request, res: Response, next: NextFunction) => {
-    try {
-      const isConnected = await checkDatabaseConnection();
-
-      if (!isConnected) {
-        throw new AppError('Database is not connected', 503, 'DATABASE_UNAVAILABLE');
-      }
-
-      res.status(200).json({
-        success: true,
-        data: {
-          status: 'ok',
-          database: 'connected',
-        },
-      });
-    } catch (error) {
-      next(error);
-    }
-  });
+  // Health endpoints
+  const healthHandler = async (_req: Request, res: Response) => {
+    const isConnected = await checkDatabaseConnection();
+    res.status(200).json({
+      success: true,
+      data: {
+        status: 'ok',
+        database: isConnected ? 'connected' : 'disconnected',
+      },
+    });
+  };
+  app.get('/health', healthHandler);
+  app.get('/api/health', healthHandler);
 
   // Authentication API v1 routes
   app.use('/api/v1/auth', authRouter);

@@ -86,39 +86,39 @@ export const AlertsList: React.FC<AlertsListProps> = ({
   };
 
   return (
-    <div className="bg-slate-900/80 border border-slate-800 rounded-xl p-5 space-y-4">
+    <div className="bg-[#0e1014] border border-white/[0.08] rounded-xl p-4 sm:p-5 space-y-4 shadow-lg shadow-black/30">
       {/* Header & Controls */}
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
         <div className="flex items-center gap-2">
           <AlertTriangle className="w-4 h-4 text-rose-400" />
-          <h3 className="text-xs font-semibold uppercase tracking-wider text-slate-300">
+          <h3 className="text-xs font-bold uppercase tracking-wider text-zinc-300 font-display">
             System Alerts & Exceptions
           </h3>
-          <span className="text-xs text-slate-500 font-mono">
+          <span className="text-xs text-zinc-500 font-data">
             ({filteredAlerts.length} total)
           </span>
         </div>
 
         {/* Filters */}
-        <div className="flex flex-wrap items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2 font-body">
           {/* Scope Toggle */}
-          <div className="flex items-center bg-slate-950 p-0.5 rounded-lg border border-slate-800 text-xs">
+          <div className="flex items-center bg-[#07080a] p-0.5 rounded-lg border border-white/[0.08] text-xs">
             <button
               onClick={() => onChangeFilterScope('device')}
-              className={`px-2.5 py-1 rounded font-medium transition ${
+              className={`px-2.5 py-1 rounded font-medium transition cursor-pointer ${
                 filterScope === 'device'
-                  ? 'bg-slate-800 text-white'
-                  : 'text-slate-400 hover:text-slate-200'
+                  ? 'bg-zinc-800 text-white'
+                  : 'text-zinc-400 hover:text-zinc-200'
               }`}
             >
-              {selectedDeviceCode ? `Bag: ${selectedDeviceCode}` : 'Selected Bag'}
+              {selectedDeviceCode ? `Bag: ${selectedDeviceCode}` : 'Active Bag'}
             </button>
             <button
               onClick={() => onChangeFilterScope('all')}
-              className={`px-2.5 py-1 rounded font-medium transition ${
+              className={`px-2.5 py-1 rounded font-medium transition cursor-pointer ${
                 filterScope === 'all'
-                  ? 'bg-slate-800 text-white'
-                  : 'text-slate-400 hover:text-slate-200'
+                  ? 'bg-zinc-800 text-white'
+                  : 'text-zinc-400 hover:text-zinc-200'
               }`}
             >
               Fleetwide
@@ -129,7 +129,7 @@ export const AlertsList: React.FC<AlertsListProps> = ({
           <select
             value={statusFilter}
             onChange={(e) => setStatusFilter(e.target.value as any)}
-            className="bg-slate-950 text-slate-300 border border-slate-800 rounded-lg px-2 py-1 text-xs focus:outline-none focus:border-cyan-500"
+            className="bg-[#07080a] text-zinc-300 border border-white/[0.1] rounded-lg px-2 py-1 text-xs focus:outline-none focus:border-orange-500"
           >
             <option value="all">All Status</option>
             <option value="active">Active Only</option>
@@ -140,7 +140,7 @@ export const AlertsList: React.FC<AlertsListProps> = ({
           <select
             value={severityFilter}
             onChange={(e) => setSeverityFilter(e.target.value as any)}
-            className="bg-slate-950 text-slate-300 border border-slate-800 rounded-lg px-2 py-1 text-xs focus:outline-none focus:border-cyan-500"
+            className="bg-[#07080a] text-zinc-300 border border-white/[0.1] rounded-lg px-2 py-1 text-xs focus:outline-none focus:border-orange-500"
           >
             <option value="all">All Severities</option>
             <option value="CRITICAL">Critical Only</option>
@@ -151,21 +151,21 @@ export const AlertsList: React.FC<AlertsListProps> = ({
 
       {/* Alerts List */}
       {filteredAlerts.length === 0 ? (
-        <div className="p-8 text-center bg-slate-950/40 rounded-xl border border-slate-800/60">
-          <CheckCircle2 className="w-8 h-8 text-emerald-500/60 mx-auto mb-2" />
-          <p className="text-sm font-medium text-slate-300">No matching alerts found</p>
-          <p className="text-xs text-slate-500 mt-0.5">
-            Smart delivery compartments are operating within certified operating limits.
+        <div className="p-8 text-center bg-[#07080a] rounded-xl border border-white/[0.06]">
+          <CheckCircle2 className="w-8 h-8 text-emerald-400/80 mx-auto mb-2" />
+          <p className="text-sm font-semibold text-zinc-200 font-display">All Compartments Nominal</p>
+          <p className="text-xs text-zinc-500 font-body mt-0.5">
+            Smart delivery compartments are operating within certified temperature and humidity thresholds.
           </p>
         </div>
       ) : (
-        <div className="space-y-2 max-h-96 overflow-y-auto pr-1 divide-y divide-slate-800/40">
+        <div className="space-y-2 max-h-96 overflow-y-auto pr-1 divide-y divide-white/[0.04]">
           {filteredAlerts.map((alert) => (
             <div
               key={alert.id}
               className={`p-3 rounded-lg border transition flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 ${
                 alert.isResolved
-                  ? 'bg-slate-950/40 border-slate-800/40 opacity-75'
+                  ? 'bg-[#0a0b0e] border-white/[0.06] opacity-75'
                   : alert.severity === 'CRITICAL'
                   ? 'bg-rose-950/20 border-rose-900/40'
                   : 'bg-amber-950/20 border-amber-900/40'
@@ -176,39 +176,39 @@ export const AlertsList: React.FC<AlertsListProps> = ({
                 <div className="flex flex-wrap items-center gap-2">
                   {getSeverityBadge(alert.severity)}
                   {alert.device && (
-                    <span className="text-xs font-mono font-medium text-slate-300">
+                    <span className="text-xs font-data font-medium text-zinc-300">
                       [{alert.device.deviceCode}]
                     </span>
                   )}
-                  <span className="text-xs font-semibold text-slate-200">
+                  <span className="text-xs font-semibold text-zinc-200 font-body">
                     {alert.type.replace(/_/g, ' ')}
                   </span>
                   {alert.isResolved ? (
-                    <span className="inline-flex items-center gap-1 text-[10px] text-emerald-400 bg-emerald-950/40 px-2 py-0.5 rounded border border-emerald-800/40 font-medium">
+                    <span className="inline-flex items-center gap-1 text-[10px] text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded-full border border-emerald-500/30 font-bold uppercase">
                       <Check className="w-2.5 h-2.5" /> Resolved
                     </span>
                   ) : (
-                    <span className="inline-flex items-center gap-1 text-[10px] text-rose-400 bg-rose-950/40 px-2 py-0.5 rounded border border-rose-800/40 font-medium">
+                    <span className="inline-flex items-center gap-1 text-[10px] text-rose-400 bg-rose-500/10 px-2 py-0.5 rounded-full border border-rose-500/30 font-bold uppercase">
                       Active
                     </span>
                   )}
                 </div>
 
-                <p className="text-xs text-slate-300 line-clamp-2">{alert.message}</p>
+                <p className="text-xs text-zinc-300 line-clamp-2 font-body">{alert.message}</p>
 
-                <div className="flex flex-wrap items-center gap-3 text-[10px] text-slate-500">
+                <div className="flex flex-wrap items-center gap-3 text-[10px] text-zinc-500 font-body">
                   <span className="flex items-center gap-1">
                     <Clock className="w-3 h-3" />
-                    Triggered: {formatDate(alert.triggeredAt)}
+                    Triggered: <span className="font-data text-zinc-400">{formatDate(alert.triggeredAt)}</span>
                   </span>
                   {alert.triggerValue !== null && alert.thresholdValue !== null && (
-                    <span className="font-mono text-slate-400">
-                      Value: <strong>{alert.triggerValue}</strong> (Limit: {alert.thresholdValue})
+                    <span className="font-data text-zinc-400">
+                      Value: <strong className="text-zinc-200">{alert.triggerValue}</strong> (Limit: {alert.thresholdValue})
                     </span>
                   )}
                   {alert.isResolved && alert.resolvedAt && (
-                    <span className="text-emerald-500/80">
-                      Resolved: {formatDate(alert.resolvedAt)}
+                    <span className="text-emerald-400">
+                      Resolved: <span className="font-data">{formatDate(alert.resolvedAt)}</span>
                     </span>
                   )}
                 </div>
@@ -221,13 +221,13 @@ export const AlertsList: React.FC<AlertsListProps> = ({
                     <button
                       onClick={() => handleResolve(alert.id)}
                       disabled={resolvingId === alert.id}
-                      className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg bg-emerald-600/20 hover:bg-emerald-600/30 text-emerald-300 border border-emerald-600/40 transition disabled:opacity-50"
+                      className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-lg bg-emerald-500/15 hover:bg-emerald-500/25 text-emerald-300 border border-emerald-500/30 transition disabled:opacity-50 cursor-pointer"
                     >
                       <Check className="w-3 h-3" />
                       {resolvingId === alert.id ? 'Resolving...' : 'Resolve'}
                     </button>
                   ) : (
-                    <span className="text-[10px] text-slate-500 italic">Sign in to resolve</span>
+                    <span className="text-[10px] text-zinc-500 italic font-body">Sign in to resolve</span>
                   )}
                 </div>
               )}

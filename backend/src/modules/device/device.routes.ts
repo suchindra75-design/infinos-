@@ -12,6 +12,9 @@ import { exportController } from '../export/export.controller.js';
 
 export const deviceRouter = Router();
 
+const adminRole = UserRole?.ADMIN || ('ADMIN' as const);
+const operatorRole = UserRole?.OPERATOR || ('OPERATOR' as const);
+
 // All device endpoints strictly require authentication
 deviceRouter.use(authenticate);
 
@@ -23,7 +26,7 @@ deviceRouter.get('/', (req, res, next) => {
 // Create new device (ADMIN, OPERATOR only)
 deviceRouter.post(
   '/',
-  requireRole(UserRole.ADMIN, UserRole.OPERATOR),
+  requireRole(adminRole, operatorRole),
   validateBody(createDeviceSchema),
   (req, res, next) => {
     deviceController.create(req, res, next);
@@ -33,7 +36,7 @@ deviceRouter.post(
 // Test ThingSpeak connection (ADMIN, OPERATOR only)
 deviceRouter.post(
   '/test-connection',
-  requireRole(UserRole.ADMIN, UserRole.OPERATOR),
+  requireRole(adminRole, operatorRole),
   validateBody(testConnectionSchema),
   (req, res, next) => {
     deviceController.testConnection(req, res, next);
@@ -48,7 +51,7 @@ deviceRouter.get('/:id/status', (req, res, next) => {
 // Trigger manual device synchronization (ADMIN, OPERATOR only - with ownership enforcement)
 deviceRouter.post(
   '/:id/sync',
-  requireRole(UserRole.ADMIN, UserRole.OPERATOR),
+  requireRole(adminRole, operatorRole),
   (req, res, next) => {
     deviceController.sync(req, res, next);
   }
@@ -110,7 +113,7 @@ deviceRouter.get('/:id/export/pdf', (req, res, next) => {
 // Update device (ADMIN, OPERATOR only - with ownership enforcement in service)
 deviceRouter.patch(
   '/:id',
-  requireRole(UserRole.ADMIN, UserRole.OPERATOR),
+  requireRole(adminRole, operatorRole),
   validateBody(updateDeviceSchema),
   (req, res, next) => {
     deviceController.update(req, res, next);
@@ -120,7 +123,7 @@ deviceRouter.patch(
 // Delete device (ADMIN, OPERATOR only - with ownership enforcement in service)
 deviceRouter.delete(
   '/:id',
-  requireRole(UserRole.ADMIN, UserRole.OPERATOR),
+  requireRole(adminRole, operatorRole),
   (req, res, next) => {
     deviceController.delete(req, res, next);
   }

@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
+import { LogIn } from 'lucide-react';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { api } from './api/client';
 import {
@@ -22,12 +23,12 @@ import { StatusBanner } from './components/StatusBanner';
 import { AuthModal } from './components/AuthModal';
 
 const DashboardContent: React.FC = () => {
-  const { isAuthenticated, user } = useAuth();
+  const { isAuthenticated, user, isLoading: isAuthLoading } = useAuth();
 
   // Fleet and Device States
   const [devices, setDevices] = useState<SafeDevice[]>([]);
   const [selectedDevice, setSelectedDevice] = useState<SafeDevice | null>(null);
-  const [isLoadingDevices, setIsLoadingDevices] = useState<boolean>(true);
+  const [isLoadingDevices, setIsLoadingDevices] = useState<boolean>(false);
 
   // Telemetry & Device Metadata States
   const [summary, setSummary] = useState<AnalyticsSummary | null>(null);
@@ -55,12 +56,32 @@ const DashboardContent: React.FC = () => {
   const [isSettingsOpen, setIsSettingsOpen] = useState<boolean>(false);
   const [isExportOpen, setIsExportOpen] = useState<boolean>(false);
 
-  // Request guard to prevent overlapping auto-refresh fetches
+  // Request guards to prevent duplicate/overlapping fetches
   const isFetchingRef = useRef<boolean>(false);
+  const isFetchingDevicesRef = useRef<boolean>(false);
 
-  // Fetch registered devices list
+  // Automatically show auth UI when unauthenticated
+  useEffect(() => {
+    if (!isAuthLoading && !isAuthenticated) {
+      setIsAuthOpen(true);
+    } else if (isAuthenticated) {
+      setIsAuthOpen(false);
+    }
+  }, [isAuthLoading, isAuthenticated]);
+
+  // Fetch registered devices list with strict auth check and deduplication
   const fetchDevices = useCallback(async () => {
+    if (!isAuthenticated) {
+      setDevices([]);
+      setSelectedDevice(null);
+      setIsLoadingDevices(false);
+      return;
+    }
+
+    if (isFetchingDevicesRef.current) return;
+    isFetchingDevicesRef.current = true;
     setIsLoadingDevices(true);
+
     try {
       const list = await api.devices.list();
       setDevices(list);
@@ -85,11 +106,13 @@ const DashboardContent: React.FC = () => {
       setSelectedDevice(null);
     } finally {
       setIsLoadingDevices(false);
+      isFetchingDevicesRef.current = false;
     }
-  }, []);
+  }, [isAuthenticated]);
 
   // Fetch telemetry for currently selected device
   const fetchDeviceData = useCallback(async (device: SafeDevice, silent: boolean = false) => {
+    if (!isAuthenticated) return;
     if (isFetchingRef.current) return;
     isFetchingRef.current = true;
 
@@ -163,16 +186,27 @@ const DashboardContent: React.FC = () => {
       if (!silent) setIsTelemetryLoading(false);
       isFetchingRef.current = false;
     }
-  }, [timeRange, alertsScope]);
+  }, [isAuthenticated, timeRange, alertsScope]);
 
-  // Initial load
+  // Load devices only when authentication has been confirmed
   useEffect(() => {
-    fetchDevices();
-  }, [fetchDevices]);
+    if (isAuthLoading) {
+      // Session restoration is in progress; do not request protected device data
+      return;
+    }
+
+    if (isAuthenticated) {
+      fetchDevices();
+    } else {
+      setDevices([]);
+      setSelectedDevice(null);
+      setIsLoadingDevices(false);
+    }
+  }, [isAuthLoading, isAuthenticated, fetchDevices]);
 
   // Load telemetry when selected device or time range changes
   useEffect(() => {
-    if (selectedDevice) {
+    if (isAuthenticated && selectedDevice) {
       fetchDeviceData(selectedDevice, false);
     } else {
       setSummary(null);
@@ -180,22 +214,22 @@ const DashboardContent: React.FC = () => {
       setTimeseries([]);
       setAlerts([]);
     }
-  }, [selectedDevice, fetchDeviceData]);
+  }, [isAuthenticated, selectedDevice, fetchDeviceData]);
 
-  // Auto-refresh interval effect
+  // Auto-refresh interval effect (only when authenticated)
   useEffect(() => {
-    if (!refreshInterval || refreshInterval <= 0 || !selectedDevice) return;
+    if (!isAuthenticated || !refreshInterval || refreshInterval <= 0 || !selectedDevice) return;
 
     const intervalId = setInterval(() => {
       fetchDeviceData(selectedDevice, true);
     }, refreshInterval * 1000);
 
     return () => clearInterval(intervalId);
-  }, [refreshInterval, selectedDevice, fetchDeviceData]);
+  }, [isAuthenticated, refreshInterval, selectedDevice, fetchDeviceData]);
 
   // Manual ThingSpeak to PostgreSQL synchronization
   const handleManualSync = async () => {
-    if (!selectedDevice || isSyncing) return;
+    if (!isAuthenticated || !selectedDevice || isSyncing) return;
     setIsSyncing(true);
     try {
       await api.devices.sync(selectedDevice.id);
@@ -232,8 +266,19 @@ const DashboardContent: React.FC = () => {
     }
   };
 
+  if (isAuthLoading) {
+    return (
+      <div className="min-h-screen bg-[#07080a] infinos-grid-bg text-zinc-100 flex items-center justify-center font-body">
+        <div className="flex flex-col items-center gap-3">
+          <div className="w-8 h-8 rounded-full border-2 border-orange-500/20 border-t-orange-500 animate-spin" />
+          <span className="text-xs text-zinc-400 font-display tracking-wider uppercase">Restoring Session...</span>
+        </div>
+      </div>
+    );
+  }
+
   return (
-    <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col font-sans selection:bg-cyan-500/30 selection:text-cyan-200">
+    <div className="min-h-screen bg-[#07080a] infinos-grid-bg text-zinc-100 flex flex-col font-body selection:bg-orange-500/30 selection:text-orange-200 relative">
       {/* Header */}
       <Header
         selectedDevice={selectedDevice}
@@ -255,62 +300,87 @@ const DashboardContent: React.FC = () => {
           errorMessage={telemetryError}
         />
 
-        {/* Device Selector & Quick Actions */}
-        <DeviceSelector
-          devices={devices}
-          selectedDevice={selectedDevice}
-          onSelectDevice={setSelectedDevice}
-          onOpenSettings={() => setIsSettingsOpen(true)}
-          onOpenExport={() => setIsExportOpen(true)}
-          onOpenAddDevice={() => setIsAddDeviceOpen(true)}
-          isLoading={isLoadingDevices}
-        />
-
-        {/* Active Device Dashboard View */}
-        {selectedDevice && (
+        {!isAuthenticated ? (
+          <div className="bg-[#0e1014] border border-white/[0.08] rounded-2xl p-8 sm:p-12 text-center max-w-md mx-auto shadow-2xl shadow-black/50 my-8 font-body">
+            <div className="w-14 h-14 rounded-2xl bg-orange-500/10 border border-orange-500/20 text-[#ff6b00] flex items-center justify-center mx-auto mb-4">
+              <LogIn className="w-7 h-7" />
+            </div>
+            <h2 className="text-xl font-bold font-display text-white mb-2">
+              Sign In to INFINOS
+            </h2>
+            <p className="text-sm text-zinc-400 font-body mb-6">
+              Authentication is required to view registered delivery compartments, inspect live sensor telemetry, and manage device settings.
+            </p>
+            <button
+              onClick={() => setIsAuthOpen(true)}
+              className="inline-flex items-center gap-2 px-6 py-2.5 rounded-lg bg-gradient-to-r from-[#ff6b00] to-[#ff8533] hover:from-[#ff7a1a] hover:to-[#ffa059] text-white font-semibold text-sm shadow-lg shadow-orange-500/20 transition cursor-pointer font-body"
+            >
+              <LogIn className="w-4 h-4" />
+              <span>Open Sign In</span>
+            </button>
+          </div>
+        ) : (
           <>
-            {/* Live Telemetry Cards */}
-            <LiveTelemetryCard
-              summary={summary}
-              statusInfo={statusInfo}
-              settings={settings}
-              isLoading={isTelemetryLoading}
-              error={telemetryError}
+            {/* Device Selector & Quick Actions */}
+            <DeviceSelector
+              devices={devices}
+              selectedDevice={selectedDevice}
+              onSelectDevice={setSelectedDevice}
+              onOpenSettings={() => setIsSettingsOpen(true)}
+              onOpenExport={() => setIsExportOpen(true)}
+              onOpenAddDevice={() => setIsAddDeviceOpen(true)}
+              isLoading={isLoadingDevices}
             />
 
-            {/* Analytics KPI Matrix Summary */}
-            <AnalyticsSummarySection
-              summary={summary}
-              isLoading={isTelemetryLoading}
-            />
+            {/* Active Device Dashboard View */}
+            {selectedDevice && (
+              <>
+                {/* Live Telemetry Cards */}
+                <LiveTelemetryCard
+                  summary={summary}
+                  statusInfo={statusInfo}
+                  settings={settings}
+                  isLoading={isTelemetryLoading}
+                  error={telemetryError}
+                />
 
-            {/* Chronological History Chart */}
-            <TelemetryChart
-              readings={timeseries}
-              isLoading={isTelemetryLoading}
-              timeRange={timeRange}
-              onChangeTimeRange={setTimeRange}
-              error={timeseriesError}
-            />
+                {/* Analytics KPI Matrix Summary */}
+                <AnalyticsSummarySection
+                  summary={summary}
+                  isLoading={isTelemetryLoading}
+                />
 
-            {/* Operational Alerts & Incidents */}
-            <AlertsList
-              alerts={alerts}
-              isLoading={isTelemetryLoading}
-              onResolveAlert={handleResolveAlert}
-              filterScope={alertsScope}
-              onChangeFilterScope={setAlertsScope}
-              selectedDeviceCode={selectedDevice.deviceCode}
-            />
+                {/* Chronological History Chart */}
+                <TelemetryChart
+                  readings={timeseries}
+                  isLoading={isTelemetryLoading}
+                  timeRange={timeRange}
+                  onChangeTimeRange={setTimeRange}
+                  error={timeseriesError}
+                />
+
+                {/* Operational Alerts & Incidents */}
+                <AlertsList
+                  alerts={alerts}
+                  isLoading={isTelemetryLoading}
+                  onResolveAlert={handleResolveAlert}
+                  filterScope={alertsScope}
+                  onChangeFilterScope={setAlertsScope}
+                  selectedDeviceCode={selectedDevice.deviceCode}
+                />
+              </>
+            )}
           </>
         )}
       </main>
 
       {/* Footer */}
-      <footer className="border-t border-slate-900 bg-slate-950 py-4 text-center text-xs text-slate-500">
+      <footer className="border-t border-white/[0.08] bg-[#07080a]/90 backdrop-blur-md py-4 text-center text-xs text-zinc-500 font-body">
         <div className="max-w-7xl mx-auto px-4 flex flex-col sm:flex-row items-center justify-between gap-2">
-          <span>INFINOS Smart Delivery Bag System • Cold/Hot Chain Telemetry</span>
-          <span className="font-mono text-[11px] text-slate-600">
+          <span>
+            <strong className="text-zinc-400 font-display tracking-wide">INFINOS</strong> Smart Delivery Compartment Telemetry
+          </span>
+          <span className="font-data text-[11px] text-zinc-600">
             Source of Truth: PostgreSQL • ThingSpeak Synchronized
           </span>
         </div>
