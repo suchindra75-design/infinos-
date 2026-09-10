@@ -691,8 +691,8 @@ async function runAlertsAndAnalyticsTests() {
     });
 
     await new Promise<void>((resolve) => mockServer.listen(mockPort, resolve));
-    const origUrl = thingspeakService.getBaseUrl();
-    thingspeakService.setBaseUrl(`http://127.0.0.1:${mockPort}`);
+    const origUrl = (thingspeakService as any).baseUrl;
+    (thingspeakService as any).baseUrl = `http://127.0.0.1:${mockPort}`;
 
     try {
       const syncResult = await deviceSyncService.syncDevice(failBag.id);
@@ -705,7 +705,7 @@ async function runAlertsAndAnalyticsTests() {
       });
       assert.ok(readingInDb, 'Sensor reading must be present in PostgreSQL');
     } finally {
-      thingspeakService.setBaseUrl(origUrl);
+      (thingspeakService as any).baseUrl = origUrl;
       mockServer.close();
       alertService.evaluateReadings = originalEvaluateReadings;
     }

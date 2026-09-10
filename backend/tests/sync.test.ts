@@ -186,6 +186,9 @@ async function runSyncTests() {
     }
     await prisma.user.deleteMany({ where: { email: { in: testEmails } } });
 
+    // Count pre-existing devices in the database (from production/other tests)
+    const preExistingDeviceCount = await prisma.device.count();
+
     // 3. Create test users
     const pwdHash = await bcrypt.hash('TestPass123!', 8);
     const adminUser = await prisma.user.create({
@@ -380,9 +383,9 @@ async function runSyncTests() {
     // TEST 6: Failure Isolation (Bag C fails without stopping Bag A & Bag B)
     console.log('Test 6: Testing failure isolation during syncAllDevices...');
     const syncSummary = await deviceSyncService.syncAllDevices();
-    assert.strictEqual(syncSummary.totalDevices, 3);
+    assert.strictEqual(syncSummary.totalDevices, preExistingDeviceCount + 3);
     assert.strictEqual(syncSummary.successfulSyncs, 2);
-    assert.strictEqual(syncSummary.failedSyncs, 1);
+    assert.strictEqual(syncSummary.failedSyncs, preExistingDeviceCount + 1);
 
     const failedResult = syncSummary.results.find((r) => r.deviceId === bagC.id);
     assert.ok(failedResult);
@@ -486,6 +489,14 @@ async function runSyncTests() {
 
     // TEST 11: Real-time Device Status Endpoint
     console.log('Test 11: Testing dynamic status in GET /api/v1/devices/:id/status...');
+    bagAFeeds.push({
+      entry_id: 23,
+      created_at: new Date().toISOString(),
+      field1: '3.9',
+      field3: '65.2',
+      field4: '54.0',
+    });
+    await deviceSyncService.syncDevice(bagA.id);
     const statusRes = await apiRequest('GET', `/api/v1/devices/${bagA.id}/status`, operatorToken);
     assert.strictEqual(statusRes.status, 200);
     assert.strictEqual(statusRes.body.data.status, DeviceStatus.ONLINE);
