@@ -87,11 +87,11 @@ export const LiveTelemetryCard: React.FC<LiveTelemetryProps> = ({
 
   if (error) {
     return (
-      <div className="bg-rose-950/25 border border-rose-900/50 rounded-xl p-5 text-rose-300 flex items-center gap-3">
-        <AlertTriangle className="w-5 h-5 text-rose-400 shrink-0" />
-        <div className="text-sm font-body">
-          <p className="font-semibold text-rose-200">Telemetry Data Unavailable</p>
-          <p className="text-rose-300/80 text-xs mt-0.5">{error}</p>
+      <div className="bg-[var(--surface)] border border-[var(--red)]/40 rounded-[var(--radius)] p-4 text-[var(--red)] flex items-center gap-3">
+        <AlertTriangle className="w-5 h-5 text-[var(--red)] shrink-0" />
+        <div className="text-xs font-body">
+          <p className="font-semibold text-[var(--text)]">Telemetry Data Unavailable</p>
+          <p className="text-[var(--muted)] text-[11px] mt-0.5">{error}</p>
         </div>
       </div>
     );
@@ -104,123 +104,80 @@ export const LiveTelemetryCard: React.FC<LiveTelemetryProps> = ({
 
   return (
     <div className="space-y-3">
-      {/* Telemetry Header with Timestamps & Status */}
-      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 px-1">
-        <div className="flex items-center gap-2">
-          <Activity className="w-4 h-4 text-[#ff6b00]" />
-          <h2 className="text-xs font-bold uppercase tracking-wider text-zinc-300 font-display">
-            Live Compartment Telemetry
-          </h2>
-          {isLoading && (
-            <span className="text-[10px] uppercase font-bold tracking-wider px-2 py-0.5 rounded-full bg-orange-500/15 text-orange-400 border border-orange-500/30 animate-pulse">
-              Refreshing...
-            </span>
-          )}
-        </div>
-
-        <div className="flex items-center gap-3 text-xs text-zinc-400 font-body">
-          <div className="flex items-center gap-1.5">
-            <Clock className="w-3.5 h-3.5 text-zinc-500" />
-            <span>Recorded: <strong className="font-data text-zinc-300 font-normal">{formatTimestamp(summary?.latestReadingTimestamp)}</strong></span>
-          </div>
-          {statusInfo?.message && (
-            <span className="hidden lg:inline text-zinc-500">• {statusInfo.message}</span>
-          )}
-        </div>
+      {/* Timestamp bar */}
+      <div className="timestamp-bar">
+        <span>🕐 Updated: <strong>{formatTimestamp(summary?.latestReadingTimestamp)}</strong></span>
+        <span>&nbsp;·&nbsp; {summary?.readingCount ?? 0} readings loaded</span>
+        {statusInfo?.message && (
+          <span className="hidden sm:inline">&nbsp;·&nbsp; {statusInfo.message}</span>
+        )}
       </div>
 
-      {/* 3 Compartment Cards Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        {/* Cold Compartment Card */}
-        <div className="bg-[#0e1014] border border-white/[0.08] hover:border-blue-500/40 rounded-xl p-4 sm:p-5 transition relative overflow-hidden group shadow-lg shadow-black/40">
-          <div className="absolute top-0 left-0 w-1.5 h-full bg-[#00a3ff]" />
-          <div className="flex items-center justify-between mb-3">
-            <div className="flex items-center gap-2">
-              <div className="w-8 h-8 rounded-lg bg-[#00a3ff]/10 border border-[#00a3ff]/25 flex items-center justify-center text-[#00a3ff]">
-                <ThermometerSnowflake className="w-4 h-4" />
-              </div>
-              <span className="text-xs font-bold uppercase tracking-wider text-zinc-300 font-display">
-                Cold Compartment
-              </span>
+      {/* Compartment Cards Grid */}
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
+        {/* Hot Zone Card */}
+        <div className="rb-card hot">
+          <div className="flex items-center justify-between">
+            <div className="rb-label">
+              <Flame className="w-3.5 h-3.5 text-[var(--hot)]" />
+              <span>Hot Zone Temp</span>
             </div>
             <span
-              className={`text-[10px] uppercase font-bold px-2.5 py-0.5 rounded-full border ${coldStatus.color}`}
-            >
-              {coldStatus.label}
-            </span>
-          </div>
-
-          <div className="my-3">
-            {formatValue(latest?.coldTemperature, '°C')}
-          </div>
-
-          <div className="pt-3 border-t border-white/[0.06] flex items-center justify-between text-xs text-zinc-400 font-body">
-            <span>Target Range</span>
-            <span className="font-data text-zinc-300 font-medium text-[11px]">
-              {settings?.coldTempMin ?? 0.0}°C – {settings?.coldTempMax ?? 8.0}°C
-            </span>
-          </div>
-        </div>
-
-        {/* Hot Compartment Card */}
-        <div className="bg-[#0e1014] border border-white/[0.08] hover:border-orange-500/40 rounded-xl p-4 sm:p-5 transition relative overflow-hidden group shadow-lg shadow-black/40">
-          <div className="absolute top-0 left-0 w-1.5 h-full bg-[#ff6b00]" />
-          <div className="flex items-center justify-between mb-3">
-            <div className="flex items-center gap-2">
-              <div className="w-8 h-8 rounded-lg bg-orange-500/10 border border-orange-500/25 flex items-center justify-center text-[#ff6b00]">
-                <Flame className="w-4 h-4" />
-              </div>
-              <span className="text-xs font-bold uppercase tracking-wider text-zinc-300 font-display">
-                Hot Compartment
-              </span>
-            </div>
-            <span
-              className={`text-[10px] uppercase font-bold px-2.5 py-0.5 rounded-full border ${hotStatus.color}`}
+              className={`text-[9px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full border ${hotStatus.color}`}
             >
               {hotStatus.label}
             </span>
           </div>
-
-          <div className="my-3">
-            {formatValue(latest?.hotTemperature, '°C')}
+          <div className="rb-value text-[var(--hot)]">
+            {latest?.hotTemperature != null ? `${latest.hotTemperature.toFixed(1)}°C` : '—'}
           </div>
+          <div className="rb-sub flex items-center justify-between text-[10px]">
+            <span>field3 · ThingSpeak</span>
+            <span>Target: {settings?.hotTempMin ?? 50.0}°C – {settings?.hotTempMax ?? 70.0}°C</span>
+          </div>
+        </div>
 
-          <div className="pt-3 border-t border-white/[0.06] flex items-center justify-between text-xs text-zinc-400 font-body">
-            <span>Target Range</span>
-            <span className="font-data text-zinc-300 font-medium text-[11px]">
-              {settings?.hotTempMin ?? 50.0}°C – {settings?.hotTempMax ?? 70.0}°C
+        {/* Cold Zone Card */}
+        <div className="rb-card cold">
+          <div className="flex items-center justify-between">
+            <div className="rb-label">
+              <ThermometerSnowflake className="w-3.5 h-3.5 text-[var(--cold)]" />
+              <span>Cold Zone Temp</span>
+            </div>
+            <span
+              className={`text-[9px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full border ${coldStatus.color}`}
+            >
+              {coldStatus.label}
             </span>
+          </div>
+          <div className="rb-value text-[var(--cold)]">
+            {latest?.coldTemperature != null ? `${latest.coldTemperature.toFixed(1)}°C` : '—'}
+          </div>
+          <div className="rb-sub flex items-center justify-between text-[10px]">
+            <span>field1 · ThingSpeak</span>
+            <span>Target: {settings?.coldTempMin ?? 0.0}°C – {settings?.coldTempMax ?? 8.0}°C</span>
           </div>
         </div>
 
         {/* Relative Humidity Card */}
-        <div className="bg-[#0e1014] border border-white/[0.08] hover:border-sky-500/40 rounded-xl p-4 sm:p-5 transition relative overflow-hidden group shadow-lg shadow-black/40">
-          <div className="absolute top-0 left-0 w-1.5 h-full bg-sky-500" />
-          <div className="flex items-center justify-between mb-3">
-            <div className="flex items-center gap-2">
-              <div className="w-8 h-8 rounded-lg bg-sky-500/10 border border-sky-500/25 flex items-center justify-center text-sky-400">
-                <Droplets className="w-4 h-4" />
-              </div>
-              <span className="text-xs font-bold uppercase tracking-wider text-zinc-300 font-display">
-                Relative Humidity
-              </span>
+        <div className="rb-card battery">
+          <div className="flex items-center justify-between">
+            <div className="rb-label">
+              <Droplets className="w-3.5 h-3.5 text-[var(--green)]" />
+              <span>Humidity</span>
             </div>
             <span
-              className={`text-[10px] uppercase font-bold px-2.5 py-0.5 rounded-full border ${humidityStatus.color}`}
+              className={`text-[9px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full border ${humidityStatus.color}`}
             >
               {humidityStatus.label}
             </span>
           </div>
-
-          <div className="my-3">
-            {formatValue(latest?.humidity, '%')}
+          <div className="rb-value text-[var(--green)]">
+            {latest?.humidity != null ? `${latest.humidity.toFixed(1)}%` : '—'}
           </div>
-
-          <div className="pt-3 border-t border-white/[0.06] flex items-center justify-between text-xs text-zinc-400 font-body">
-            <span>Target Range</span>
-            <span className="font-data text-zinc-300 font-medium text-[11px]">
-              {settings?.humidityMin ?? 20.0}% – {settings?.humidityMax ?? 85.0}%
-            </span>
+          <div className="rb-sub flex items-center justify-between text-[10px]">
+            <span>field4 · ThingSpeak</span>
+            <span>Target: {settings?.humidityMin ?? 20.0}% – {settings?.humidityMax ?? 85.0}%</span>
           </div>
         </div>
       </div>

@@ -4,15 +4,12 @@ import {
   Plus,
   LogOut,
   LogIn,
-  Radio,
   Clock,
   Menu,
   X,
-  LayoutDashboard,
-  Cpu,
-  BarChart2,
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
+import { useTheme } from '../context/ThemeContext';
 import { SafeDevice } from '../types';
 
 export type NavTab = 'dashboard' | 'devices' | 'analytics';
@@ -43,16 +40,18 @@ export const Header: React.FC<HeaderProps> = ({
   lastRefreshed,
 }) => {
   const { user, isAuthenticated, logout } = useAuth();
+  const { theme, toggleTheme } = useTheme();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [userDropdownOpen, setUserDropdownOpen] = useState(false);
 
   const getRoleBadge = (role?: string) => {
     switch (role) {
       case 'ADMIN':
-        return 'bg-orange-500/20 text-orange-300 border-orange-500/40';
+        return 'bg-orange-500/20 text-orange-400 border border-orange-500/40';
       case 'OPERATOR':
-        return 'bg-blue-500/20 text-blue-300 border-blue-500/40';
+        return 'bg-blue-500/20 text-blue-400 border border-blue-500/40';
       default:
-        return 'bg-zinc-800 text-zinc-300 border-zinc-700';
+        return 'bg-[var(--surface3)] text-[var(--muted)] border border-[var(--border)]';
     }
   };
 
@@ -62,163 +61,188 @@ export const Header: React.FC<HeaderProps> = ({
   };
 
   return (
-    <header className="bg-[#08090b]/95 border-b border-white/[0.08] backdrop-blur-md sticky top-0 z-30 text-white">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-15 flex items-center justify-between gap-4">
-        {/* Left: Brand Identity & Navigation */}
-        <div className="flex items-center gap-6 min-w-0">
-          {/* Logo */}
-          <div className="flex items-center gap-2.5 shrink-0 cursor-pointer" onClick={() => onSelectNavTab('dashboard')}>
-            <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-orange-500 to-amber-600 flex items-center justify-center shadow-lg shadow-orange-500/25 shrink-0 border border-orange-400/30">
-              <Radio className="w-4 h-4 text-white" />
-            </div>
-            <div className="flex flex-col">
-              <div className="flex items-center gap-2">
-                <span className="font-display font-extrabold tracking-tight text-lg leading-none text-white">
-                  INFI<span className="text-[#ff6b00]">NOS</span>
-                </span>
-                {/* LIVE Status Pill */}
-                <div className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 text-[10px] font-bold uppercase tracking-wider">
-                  <span className="relative flex h-1.5 w-1.5">
-                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
-                    <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-emerald-500"></span>
-                  </span>
-                  LIVE
-                </div>
-              </div>
-              <span className="text-[10px] text-zinc-400 font-body leading-none mt-1 hidden sm:block">
-                Smart Delivery Bag Monitoring
-              </span>
-            </div>
+    <header className="sticky top-0 z-40 w-full h-[52px] bg-[var(--nav-bg)] backdrop-blur-[20px] saturate-[1.4] border-b border-[var(--border)] transition-colors duration-250">
+      <div className="max-w-[1180px] h-full mx-auto px-4 sm:px-5 flex items-center justify-between relative">
+        {/* Brand with Original INFINOS Logo */}
+        <div
+          className="nav-brand cursor-pointer select-none"
+          onClick={() => onSelectNavTab('dashboard')}
+          id="navBrandLogo"
+        >
+          <div className="nav-logo">
+            <img
+              src="/logo.png"
+              alt="INFINOS logo"
+              width={26}
+              height={26}
+              className="w-full h-full object-cover rounded-[inherit] block"
+              loading="eager"
+            />
           </div>
-
-          {/* Desktop Navigation Links */}
-          <nav className="hidden md:flex items-center gap-1 pl-4 border-l border-white/[0.08]">
-            <button
-              onClick={() => onSelectNavTab('dashboard')}
-              className={`px-3 py-1.5 rounded-lg text-xs font-medium font-body transition flex items-center gap-1.5 ${
-                activeNavTab === 'dashboard'
-                  ? 'bg-orange-500/15 text-orange-400 border border-orange-500/30 shadow-xs'
-                  : 'text-zinc-400 hover:text-zinc-100 hover:bg-zinc-800/50'
-              }`}
-            >
-              <LayoutDashboard className="w-3.5 h-3.5" />
-              <span>Dashboard</span>
-            </button>
-            <button
-              onClick={() => onSelectNavTab('devices')}
-              className={`px-3 py-1.5 rounded-lg text-xs font-medium font-body transition flex items-center gap-1.5 ${
-                activeNavTab === 'devices'
-                  ? 'bg-orange-500/15 text-orange-400 border border-orange-500/30 shadow-xs'
-                  : 'text-zinc-400 hover:text-zinc-100 hover:bg-zinc-800/50'
-              }`}
-            >
-              <Cpu className="w-3.5 h-3.5" />
-              <span>Devices</span>
-            </button>
-            <button
-              onClick={() => onSelectNavTab('analytics')}
-              className={`px-3 py-1.5 rounded-lg text-xs font-medium font-body transition flex items-center gap-1.5 ${
-                activeNavTab === 'analytics'
-                  ? 'bg-orange-500/15 text-orange-400 border border-orange-500/30 shadow-xs'
-                  : 'text-zinc-400 hover:text-zinc-100 hover:bg-zinc-800/50'
-              }`}
-            >
-              <BarChart2 className="w-3.5 h-3.5" />
-              <span>Analytics</span>
-            </button>
-          </nav>
+          <span className="font-bold text-[0.95rem] tracking-tight text-[var(--text)]">INFINOS</span>
         </div>
 
-        {/* Right: Operational Actions */}
-        <div className="flex items-center gap-2 sm:gap-3">
-          {/* Last Refreshed & Auto-Refresh Controls */}
-          <div className="hidden lg:flex items-center gap-2 text-xs text-zinc-400 bg-[#0e1014] px-2.5 py-1 rounded-lg border border-white/[0.08]">
-            <Clock className="w-3.5 h-3.5 text-zinc-500" />
-            <span className="text-zinc-300 font-data text-[11px]">{formatLastRefreshed(lastRefreshed)}</span>
-            <span className="text-zinc-700">|</span>
-            <label className="text-zinc-400 flex items-center gap-1.5 text-[11px]">
-              <span>Auto:</span>
-              <select
-                value={refreshInterval}
-                onChange={(e) => onChangeRefreshInterval(Number(e.target.value))}
-                className="bg-[#14171d] text-zinc-200 border border-white/[0.1] rounded px-1.5 py-0.5 text-[11px] focus:outline-none focus:border-orange-500"
-              >
-                <option value={15}>15s</option>
-                <option value={30}>30s</option>
-                <option value={60}>60s</option>
-                <option value={0}>Off</option>
-              </select>
-            </label>
+        {/* Centered Nav Links (Desktop) */}
+        <div className="hidden md:flex items-center gap-0.5 absolute left-1/2 -translate-x-1/2">
+          <button
+            onClick={() => onSelectNavTab('dashboard')}
+            className={`nav-link ${activeNavTab === 'dashboard' ? 'active' : ''}`}
+          >
+            Dashboard
+          </button>
+          <button
+            onClick={() => onSelectNavTab('devices')}
+            className={`nav-link ${activeNavTab === 'devices' ? 'active' : ''}`}
+          >
+            Devices
+          </button>
+          <button
+            onClick={() => onSelectNavTab('analytics')}
+            className={`nav-link ${activeNavTab === 'analytics' ? 'active' : ''}`}
+          >
+            Analytics
+          </button>
+        </div>
+
+        {/* Right Nav Actions */}
+        <div className="flex items-center gap-2 sm:gap-2.5">
+          {/* Live Indicator Pill */}
+          <div className="live-badge hidden sm:flex" id="liveIndicator">
+            LIVE
           </div>
 
-          {/* Manual Sync Button */}
-          {selectedDevice && (
-            <button
-              onClick={onManualSync}
-              disabled={isSyncing}
-              title="Trigger immediate ThingSpeak to PostgreSQL synchronization"
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg bg-[#0e1014] hover:bg-[#15181f] text-zinc-300 border border-white/[0.08] hover:border-orange-500/30 transition disabled:opacity-50"
-            >
-              <RefreshCw className={`w-3.5 h-3.5 ${isSyncing ? 'animate-spin text-[#ff6b00]' : 'text-zinc-400'}`} />
-              <span className="hidden sm:inline">{isSyncing ? 'Syncing...' : 'Sync Now'}</span>
-            </button>
-          )}
+          {/* Theme Toggle Button */}
+          <button
+            className="btn-theme"
+            onClick={toggleTheme}
+            aria-label="Toggle theme"
+            title={theme === 'dark' ? 'Switch to Light Mode' : 'Switch to Dark Mode'}
+          >
+            {theme === 'dark' ? (
+              /* Moon icon: shown in dark mode */
+              <svg
+                width="15"
+                height="15"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              >
+                <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z" />
+              </svg>
+            ) : (
+              /* Sun icon: shown in light mode */
+              <svg
+                width="15"
+                height="15"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              >
+                <circle cx="12" cy="12" r="5" />
+                <line x1="12" y1="1" x2="12" y2="3" />
+                <line x1="12" y1="21" x2="12" y2="23" />
+                <line x1="4.22" y1="4.22" x2="5.64" y2="5.64" />
+                <line x1="18.36" y1="18.36" x2="19.78" y2="19.78" />
+                <line x1="1" y1="12" x2="3" y2="12" />
+                <line x1="21" y1="12" x2="23" y2="12" />
+                <line x1="4.22" y1="19.78" x2="5.64" y2="18.36" />
+                <line x1="18.36" y1="5.64" x2="19.78" y2="4.22" />
+              </svg>
+            )}
+          </button>
 
-          {/* Rounded Claim Bag Button */}
-          {isAuthenticated && (user?.role === 'ADMIN' || user?.role === 'OPERATOR') ? (
-            <button
-              onClick={onOpenAddDevice}
-              className="inline-flex items-center gap-1.5 px-4 py-1.5 text-xs font-semibold rounded-full bg-gradient-to-r from-[#ff6b00] to-[#e05e00] hover:from-[#ff7d1a] hover:to-[#eb6405] text-white shadow-md shadow-orange-500/20 transition cursor-pointer"
-            >
-              <Plus className="w-3.5 h-3.5 stroke-[2.5]" />
-              <span>Claim Bag</span>
-            </button>
-          ) : (
-            <button
-              onClick={onOpenAuth}
-              className="inline-flex items-center gap-1.5 px-4 py-1.5 text-xs font-semibold rounded-full bg-gradient-to-r from-[#ff6b00] to-[#e05e00] hover:from-[#ff7d1a] hover:to-[#eb6405] text-white shadow-md shadow-orange-500/20 transition cursor-pointer"
-            >
-              <Plus className="w-3.5 h-3.5 stroke-[2.5]" />
-              <span>Claim Bag</span>
-            </button>
-          )}
+          {/* Claim Bag Button */}
+          <button
+            className="btn-claim"
+            onClick={onOpenAddDevice}
+            title="Claim or connect a new Smart Bag"
+          >
+            <Plus className="w-3.5 h-3.5 stroke-[2.5]" />
+            <span>Claim Bag</span>
+          </button>
 
-          {/* User Account / Sign In */}
+          {/* User Account Menu / Auth */}
           {isAuthenticated && user ? (
-            <div className="flex items-center gap-2 pl-2 border-l border-white/[0.08]">
-              <div className="hidden xl:block text-right">
-                <div className="text-xs font-medium text-zinc-200">{user.name}</div>
-                <div className="text-[10px] text-zinc-500 font-data">{user.email}</div>
-              </div>
-              <span
-                className={`text-[9px] uppercase font-bold px-2 py-0.5 rounded-full border ${getRoleBadge(
-                  user.role
-                )}`}
-              >
-                {user.role}
-              </span>
+            <div className="relative">
               <button
-                onClick={logout}
-                title="Sign out of INFINOS"
-                className="p-1.5 text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800 rounded-lg transition cursor-pointer"
+                onClick={() => setUserDropdownOpen(!userDropdownOpen)}
+                className="flex items-center gap-1.5 px-2 py-1 rounded-lg bg-[var(--surface2)] border border-[var(--border)] text-xs text-[var(--text)] hover:border-[var(--border-strong)] transition cursor-pointer"
+                title={`${user.name} (${user.role})`}
               >
-                <LogOut className="w-4 h-4" />
+                <div className="w-5 h-5 rounded-full bg-[var(--surface3)] flex items-center justify-center text-[10px] font-bold text-[var(--orange)]">
+                  {user.name.charAt(0).toUpperCase()}
+                </div>
+                <span className="hidden lg:inline text-xs font-medium max-w-[90px] truncate">
+                  {user.name}
+                </span>
+                <span className={`text-[9px] font-bold px-1.5 py-0.2 rounded-full hidden sm:inline ${getRoleBadge(user.role)}`}>
+                  {user.role}
+                </span>
               </button>
+
+              {userDropdownOpen && (
+                <div
+                  className="absolute right-0 mt-2 w-52 bg-[var(--surface)] border border-[var(--border-strong)] rounded-xl shadow-xl py-2 z-50 text-xs"
+                  onClick={() => setUserDropdownOpen(false)}
+                >
+                  <div className="px-3 py-1.5 border-b border-[var(--border)]">
+                    <p className="font-semibold text-[var(--text)] truncate">{user.name}</p>
+                    <p className="text-[10px] text-[var(--muted)] truncate font-data">{user.email}</p>
+                  </div>
+                  {selectedDevice && (
+                    <button
+                      onClick={onManualSync}
+                      disabled={isSyncing}
+                      className="w-full text-left px-3 py-2 flex items-center gap-2 text-[var(--text)] hover:bg-[var(--surface2)] transition"
+                    >
+                      <RefreshCw className={`w-3.5 h-3.5 ${isSyncing ? 'animate-spin text-[var(--orange)]' : 'text-[var(--muted)]'}`} />
+                      <span>{isSyncing ? 'Syncing...' : 'Sync ThingSpeak'}</span>
+                    </button>
+                  )}
+                  <div className="px-3 py-1.5 text-[10px] text-[var(--muted)] border-t border-[var(--border)] flex items-center justify-between">
+                    <span>Auto-refresh</span>
+                    <select
+                      value={refreshInterval}
+                      onChange={(e) => onChangeRefreshInterval(Number(e.target.value))}
+                      className="bg-[var(--surface2)] text-[var(--text)] border border-[var(--border)] rounded px-1 py-0.5 text-[10px]"
+                    >
+                      <option value={15}>15s</option>
+                      <option value={30}>30s</option>
+                      <option value={60}>60s</option>
+                      <option value={0}>Off</option>
+                    </select>
+                  </div>
+                  <button
+                    onClick={logout}
+                    className="w-full text-left px-3 py-2 flex items-center gap-2 text-rose-400 hover:bg-rose-500/10 transition border-t border-[var(--border)]"
+                  >
+                    <LogOut className="w-3.5 h-3.5" />
+                    <span>Sign Out</span>
+                  </button>
+                </div>
+              )}
             </div>
           ) : (
             <button
               onClick={onOpenAuth}
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg bg-zinc-800 hover:bg-zinc-700 text-zinc-200 border border-white/[0.08] transition cursor-pointer"
+              className="hidden sm:inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-[var(--surface2)] hover:bg-[var(--surface3)] text-[var(--text)] border border-[var(--border)] text-xs font-medium transition cursor-pointer"
             >
-              <LogIn className="w-3.5 h-3.5 text-zinc-400" />
+              <LogIn className="w-3.5 h-3.5 text-[var(--muted)]" />
               <span>Sign In</span>
             </button>
           )}
 
-          {/* Mobile Menu Button */}
+          {/* Mobile Menu Hamburger */}
           <button
             onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-            className="md:hidden p-1.5 text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800 rounded-lg"
+            className="md:hidden p-1.5 text-[var(--muted)] hover:text-[var(--text)] rounded-lg"
+            aria-label="Toggle navigation menu"
           >
             {mobileMenuOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
           </button>
@@ -227,17 +251,17 @@ export const Header: React.FC<HeaderProps> = ({
 
       {/* Mobile Navigation Dropdown */}
       {mobileMenuOpen && (
-        <div className="md:hidden bg-[#0a0b0e] border-b border-white/[0.08] px-4 py-3 space-y-2">
-          <div className="flex gap-2 pb-2 border-b border-white/[0.06]">
+        <div className="md:hidden bg-[var(--nav-bg)] border-b border-[var(--border)] px-4 py-3 space-y-2 backdrop-blur-xl">
+          <div className="flex gap-2 pb-2 border-b border-[var(--border)]">
             <button
               onClick={() => {
                 onSelectNavTab('dashboard');
                 setMobileMenuOpen(false);
               }}
-              className={`flex-1 py-2 rounded-lg text-xs font-medium text-center ${
+              className={`flex-1 py-1.5 rounded-full text-xs font-medium text-center ${
                 activeNavTab === 'dashboard'
-                  ? 'bg-orange-500/15 text-orange-400 border border-orange-500/30'
-                  : 'text-zinc-400 bg-[#0e1014]'
+                  ? 'bg-[var(--orange-dim)] text-[var(--orange)]'
+                  : 'text-[var(--muted)] bg-[var(--surface2)]'
               }`}
             >
               Dashboard
@@ -247,10 +271,10 @@ export const Header: React.FC<HeaderProps> = ({
                 onSelectNavTab('devices');
                 setMobileMenuOpen(false);
               }}
-              className={`flex-1 py-2 rounded-lg text-xs font-medium text-center ${
+              className={`flex-1 py-1.5 rounded-full text-xs font-medium text-center ${
                 activeNavTab === 'devices'
-                  ? 'bg-orange-500/15 text-orange-400 border border-orange-500/30'
-                  : 'text-zinc-400 bg-[#0e1014]'
+                  ? 'bg-[var(--orange-dim)] text-[var(--orange)]'
+                  : 'text-[var(--muted)] bg-[var(--surface2)]'
               }`}
             >
               Devices
@@ -260,30 +284,32 @@ export const Header: React.FC<HeaderProps> = ({
                 onSelectNavTab('analytics');
                 setMobileMenuOpen(false);
               }}
-              className={`flex-1 py-2 rounded-lg text-xs font-medium text-center ${
+              className={`flex-1 py-1.5 rounded-full text-xs font-medium text-center ${
                 activeNavTab === 'analytics'
-                  ? 'bg-orange-500/15 text-orange-400 border border-orange-500/30'
-                  : 'text-zinc-400 bg-[#0e1014]'
+                  ? 'bg-[var(--orange-dim)] text-[var(--orange)]'
+                  : 'text-[var(--muted)] bg-[var(--surface2)]'
               }`}
             >
               Analytics
             </button>
           </div>
-          <div className="flex items-center justify-between text-xs text-zinc-400 pt-1">
-            <span>Last sync: {formatLastRefreshed(lastRefreshed)}</span>
+
+          <div className="flex items-center justify-between pt-1 text-xs text-[var(--muted)]">
             <div className="flex items-center gap-1.5">
-              <span>Auto:</span>
-              <select
-                value={refreshInterval}
-                onChange={(e) => onChangeRefreshInterval(Number(e.target.value))}
-                className="bg-[#14171d] text-zinc-200 border border-white/[0.1] rounded px-1 py-0.5 text-xs"
-              >
-                <option value={15}>15s</option>
-                <option value={30}>30s</option>
-                <option value={60}>60s</option>
-                <option value={0}>Off</option>
-              </select>
+              <Clock className="w-3.5 h-3.5" />
+              <span>{formatLastRefreshed(lastRefreshed)}</span>
             </div>
+            {!isAuthenticated && (
+              <button
+                onClick={() => {
+                  onOpenAuth();
+                  setMobileMenuOpen(false);
+                }}
+                className="text-xs text-[var(--orange)] font-semibold"
+              >
+                Sign In
+              </button>
+            )}
           </div>
         </div>
       )}

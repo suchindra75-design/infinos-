@@ -46,7 +46,7 @@ export const env: EnvConfig = {
   NODE_ENV: (process.env.NODE_ENV as 'development' | 'production' | 'test') || 'development',
   PORT: parseInt(process.env.PORT || '3000', 10),
   TRUST_PROXY: parseTrustProxy(process.env.TRUST_PROXY),
-  DATABASE_URL: process.env.DATABASE_URL || 'postgresql://postgres:password@localhost:5432/infinos',
+  DATABASE_URL: process.env.DATABASE_URL || '',
   JWT_SECRET: process.env.JWT_SECRET || 'development_jwt_secret',
   JWT_EXPIRES_IN: process.env.JWT_EXPIRES_IN || '7d',
   ENCRYPTION_KEY: process.env.ENCRYPTION_KEY || 'development_encryption_key',
@@ -60,8 +60,8 @@ export const env: EnvConfig = {
   CORS_ORIGIN: process.env.CORS_ORIGIN || 'http://localhost:5173',
 };
 
-// Guarantee DATABASE_URL is set in process.env for Prisma
-if (!process.env.DATABASE_URL) {
+// Guarantee DATABASE_URL is set in process.env for Prisma if configured in env
+if (!process.env.DATABASE_URL && env.DATABASE_URL) {
   process.env.DATABASE_URL = env.DATABASE_URL;
 }
 

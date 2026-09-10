@@ -1,13 +1,12 @@
 import React from 'react';
 import {
+  Plus,
+  Radio,
   SlidersHorizontal,
   Download,
-  CheckCircle2,
   AlertCircle,
-  XCircle,
-  Plus,
 } from 'lucide-react';
-import { SafeDevice, DeviceStatus } from '../types';
+import { SafeDevice, AnalyticsSummary } from '../types';
 import { useAuth } from '../context/AuthContext';
 
 interface DeviceSelectorProps {
@@ -18,6 +17,7 @@ interface DeviceSelectorProps {
   onOpenExport: () => void;
   onOpenAddDevice: () => void;
   isLoading: boolean;
+  summary?: AnalyticsSummary | null;
 }
 
 export const DeviceSelector: React.FC<DeviceSelectorProps> = ({
@@ -28,127 +28,115 @@ export const DeviceSelector: React.FC<DeviceSelectorProps> = ({
   onOpenExport,
   onOpenAddDevice,
   isLoading,
+  summary,
 }) => {
   const { user, isAuthenticated } = useAuth();
   const canManageSettings =
-    isAuthenticated && (user?.role === 'ADMIN' || (user?.role === 'OPERATOR' && selectedDevice?.ownerId === user.id));
-
-  const getStatusBadge = (status: DeviceStatus) => {
-    switch (status) {
-      case 'ONLINE':
-        return (
-          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-emerald-500/10 text-emerald-400 border border-emerald-500/30">
-            <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
-            ONLINE
-          </span>
-        );
-      case 'STALE':
-        return (
-          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-amber-500/10 text-amber-400 border border-amber-500/30">
-            <span className="w-1.5 h-1.5 rounded-full bg-amber-400" />
-            STALE
-          </span>
-        );
-      case 'OFFLINE':
-      default:
-        return (
-          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-rose-500/10 text-rose-400 border border-rose-500/30">
-            <span className="w-1.5 h-1.5 rounded-full bg-rose-400" />
-            OFFLINE
-          </span>
-        );
-    }
-  };
+    isAuthenticated &&
+    (user?.role === 'ADMIN' || (user?.role === 'OPERATOR' && selectedDevice?.ownerId === user.id));
 
   if (devices.length === 0 && !isLoading) {
     return (
-      <div className="bg-[#0e1014] border border-white/[0.08] rounded-xl p-6 text-center">
-        <div className="max-w-md mx-auto">
-          <div className="w-12 h-12 rounded-full bg-zinc-900 border border-white/[0.08] text-orange-400 flex items-center justify-center mx-auto mb-3">
-            <AlertCircle className="w-6 h-6" />
+      <div className="mb-6">
+        <div className="section-title">
+          <i />
+          <span>Your Bags</span>
+        </div>
+        <div className="devices-grid">
+          <div className="col-span-full text-center py-12 px-5 text-[var(--muted)] bg-[var(--surface)] border border-[var(--border)] rounded-[var(--radius)]">
+            <div className="text-4xl mb-3 opacity-25">📦</div>
+            <div className="font-display text-sm font-bold text-[var(--text)] mb-1">
+              No bags claimed yet
+            </div>
+            <div className="text-xs text-[var(--muted)]">
+              Tap{' '}
+              <button
+                onClick={onOpenAddDevice}
+                className="font-bold text-[var(--orange)] hover:underline cursor-pointer"
+              >
+                + Claim Bag
+              </button>{' '}
+              to get started
+            </div>
           </div>
-          <h3 className="text-base font-bold text-white font-display">No Smart Delivery Bags Configured</h3>
-          <p className="text-sm text-zinc-400 font-body mt-1 mb-4">
-            Connect a Smart Delivery Bag with its ThingSpeak Channel ID to begin synchronizing live cold and hot compartment telemetry.
-          </p>
-          {isAuthenticated && (user?.role === 'ADMIN' || user?.role === 'OPERATOR') ? (
-            <button
-              onClick={onOpenAddDevice}
-              className="inline-flex items-center gap-2 px-5 py-2 text-sm font-semibold rounded-full bg-gradient-to-r from-[#ff6b00] to-[#e05e00] hover:from-[#ff7d1a] hover:to-[#eb6405] text-white transition shadow-md shadow-orange-500/20 cursor-pointer"
-            >
-              <Plus className="w-4 h-4" />
-              Claim Smart Bag
-            </button>
-          ) : (
-            <p className="text-xs text-zinc-500 font-body">Sign in with Operator or Admin privileges to claim a new bag.</p>
-          )}
         </div>
       </div>
     );
   }
 
   return (
-    <div className="bg-[#0e1014] border border-white/[0.08] rounded-xl p-3.5 sm:p-4.5 flex flex-col md:flex-row items-start md:items-center justify-between gap-4 shadow-lg shadow-black/30">
-      {/* Device Dropdown & Basic Meta */}
-      <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3 w-full md:w-auto">
-        <label className="text-xs font-bold uppercase tracking-wider text-zinc-400 font-display shrink-0">
-          Active Bag:
-        </label>
-        <div className="relative w-full sm:w-72">
-          <select
-            value={selectedDevice?.id || ''}
-            onChange={(e) => {
-              const dev = devices.find((d) => d.id === e.target.value);
-              if (dev) onSelectDevice(dev);
-            }}
-            disabled={isLoading || devices.length === 0}
-            className="w-full bg-[#07080a] text-zinc-100 border border-white/[0.1] hover:border-white/[0.2] rounded-lg px-3 py-1.5 text-xs font-medium font-body focus:outline-none focus:border-orange-500 transition appearance-none cursor-pointer pr-9"
-          >
-            {devices.map((device) => (
-              <option key={device.id} value={device.id}>
-                {device.deviceCode} — {device.name}
-              </option>
-            ))}
-          </select>
-          <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-zinc-500 text-xs">
-            ▼
-          </div>
+    <div className="mb-5">
+      <div className="flex items-center justify-between mb-2.5">
+        <div className="section-title mb-0">
+          <i />
+          <span>Your Bags ({devices.length})</span>
         </div>
-
-        {selectedDevice && (
-          <div className="flex items-center gap-2.5 shrink-0">
-            {getStatusBadge(selectedDevice.status)}
-            <span className="text-xs text-zinc-500 hidden lg:inline font-body">
-              Channel: <span className="font-data text-zinc-300 font-normal">{selectedDevice.thingSpeakChannelId}</span>
-            </span>
-          </div>
-        )}
+        <button
+          onClick={onOpenAddDevice}
+          className="text-xs text-[var(--orange)] hover:underline font-semibold flex items-center gap-1 cursor-pointer"
+        >
+          <Plus className="w-3 h-3" />
+          <span>Add Bag</span>
+        </button>
       </div>
 
-      {/* Action Controls for Selected Device */}
-      {selectedDevice && (
-        <div className="flex items-center gap-2 w-full md:w-auto justify-end border-t md:border-t-0 pt-3 md:pt-0 border-white/[0.06]">
-          <button
-            onClick={onOpenExport}
-            className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg bg-[#14171d] hover:bg-[#1a1e27] text-zinc-300 border border-white/[0.08] hover:border-orange-500/30 transition cursor-pointer"
-            title="Download CSV or PDF audit telemetry reports"
-          >
-            <Download className="w-3.5 h-3.5 text-orange-400" />
-            <span>Audit Export</span>
-          </button>
+      {/* Grid of INFINOS Bag Cards */}
+      <div className="devices-grid">
+        {devices.map((device) => {
+          const isSelected = selectedDevice?.id === device.id;
+          const isOnline = device.status === 'ONLINE';
 
-          {canManageSettings && (
-            <button
-              onClick={onOpenSettings}
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg bg-[#14171d] hover:bg-[#1a1e27] text-zinc-300 border border-white/[0.08] hover:border-orange-500/30 transition cursor-pointer"
-              title="Configure compartment temperature and humidity thresholds"
+          // If active bag, display live telemetry; otherwise display fallback
+          const hotVal =
+            isSelected && summary?.latest?.hotTemperature != null
+              ? `${summary.latest.hotTemperature.toFixed(1)}°C`
+              : '—';
+          const coldVal =
+            isSelected && summary?.latest?.coldTemperature != null
+              ? `${summary.latest.coldTemperature.toFixed(1)}°C`
+              : '—';
+
+          return (
+            <div
+              key={device.id}
+              onClick={() => onSelectDevice(device)}
+              className={`device-card ${isSelected ? 'active' : ''}`}
+              style={
+                {
+                  '--card-color': isSelected ? 'var(--orange)' : 'rgba(255,255,255,0.06)',
+                } as React.CSSProperties
+              }
             >
-              <SlidersHorizontal className="w-3.5 h-3.5 text-zinc-400" />
-              <span>Thresholds</span>
-            </button>
-          )}
-        </div>
-      )}
+              <div className="dcard-top">
+                <div className="dcard-icon">🌡️</div>
+                <div className={`dcard-status ${isOnline ? 'online' : 'offline'}`}>
+                  {isOnline ? 'LIVE' : 'OFFLINE'}
+                </div>
+              </div>
+
+              <div className="dcard-name truncate" title={device.name}>
+                {device.name}
+              </div>
+
+              <div className="dcard-code">
+                {device.deviceCode} · Ch: {device.thingSpeakChannelId}
+              </div>
+
+              <div className="dcard-readings">
+                <div className="dread">
+                  <div className="dread-label">🔥 Hot</div>
+                  <div className="dread-val text-[var(--hot)]">{hotVal}</div>
+                </div>
+                <div className="dread">
+                  <div className="dread-label">❄️ Cold</div>
+                  <div className="dread-val text-[var(--cold)]">{coldVal}</div>
+                </div>
+              </div>
+            </div>
+          );
+        })}
+      </div>
     </div>
   );
 };
+
