@@ -46,43 +46,44 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose }) => {
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm">
-      <div className="bg-[var(--surface)] border border-[var(--border)] rounded-[var(--radius)] w-full max-w-sm shadow-2xl overflow-hidden flex flex-col text-[var(--text)]">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-black/85 backdrop-blur-md overflow-y-auto">
+      <div className="bg-[#0e1014] border border-white/[0.1] rounded-2xl w-full max-w-sm my-auto shadow-2xl shadow-black/80 overflow-hidden flex flex-col max-h-[90vh] text-zinc-200">
         {/* Header */}
-        <div className="px-6 py-4 border-b border-[var(--border)] flex items-center justify-between">
+        <div className="px-4 sm:px-6 py-3.5 sm:py-4 border-b border-white/[0.08] flex items-center justify-between shrink-0">
           <div className="flex items-center gap-2.5">
-            <div className="w-8 h-8 rounded-lg bg-[var(--orange)]/10 border border-[var(--orange)]/20 flex items-center justify-center text-[var(--orange)]">
+            <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-lg bg-orange-500/10 border border-orange-500/20 flex items-center justify-center text-[#ff6b00] shrink-0">
               {isRegister ? <UserPlus className="w-4 h-4" /> : <LogIn className="w-4 h-4" />}
             </div>
             <div>
-              <h3 className="font-bold text-base text-[var(--text)] font-display">
-                {isRegister ? 'Create INFINOS Account' : 'Sign In to INFINOS'}
+              <h3 className="font-bold text-sm sm:text-base text-white font-display">
+                {isRegister ? 'Create Account' : 'Sign In to INFINOS'}
               </h3>
-              <p className="text-xs text-[var(--muted)] font-body">
-                {isRegister ? 'Join the cold-chain telemetry platform' : 'Enter credentials to access controls'}
+              <p className="text-[11px] sm:text-xs text-zinc-400 font-body">
+                {isRegister ? 'Join cold-chain telemetry platform' : 'Enter credentials to access controls'}
               </p>
             </div>
           </div>
           <button
             onClick={onClose}
-            className="p-1 rounded-lg text-[var(--muted)] hover:text-[var(--text)] hover:bg-[var(--surface2)] transition cursor-pointer"
+            className="p-1.5 rounded-lg text-zinc-400 hover:text-zinc-200 hover:bg-white/[0.05] transition cursor-pointer min-h-[36px] min-w-[36px] flex items-center justify-center"
+            aria-label="Close dialog"
           >
             <X className="w-5 h-5" />
           </button>
         </div>
 
         {/* Form */}
-        <form onSubmit={handleSubmit} className="p-6 space-y-4 font-body">
+        <form onSubmit={handleSubmit} className="p-4 sm:p-6 space-y-3.5 sm:space-y-4 overflow-y-auto font-body">
           {(error || localError) && (
-            <div className="p-3 rounded-lg bg-[var(--red)]/10 border border-[var(--red)]/30 text-[var(--red)] text-xs flex items-center gap-2">
-              <AlertCircle className="w-4 h-4 shrink-0 text-[var(--red)]" />
+            <div className="p-3 rounded-lg bg-rose-950/40 border border-rose-800/60 text-rose-300 text-xs flex items-center gap-2">
+              <AlertCircle className="w-4 h-4 shrink-0 text-rose-400" />
               <span>{localError || error}</span>
             </div>
           )}
 
           {isRegister && (
             <div>
-              <label className="text-xs font-semibold text-[var(--muted)] uppercase tracking-wider block mb-1">
+              <label className="text-[11px] sm:text-xs font-semibold text-zinc-300 uppercase tracking-wider block mb-1">
                 Full Name
               </label>
               <input
@@ -90,14 +91,14 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose }) => {
                 value={name}
                 onChange={(e) => setName(e.target.value)}
                 placeholder="Dr. Alex Morgan"
-                className="w-full bg-[var(--surface2)] border border-[var(--border)] rounded-lg px-3 py-2 text-sm text-[var(--text)] focus:outline-none focus:border-[var(--orange)]"
+                className="w-full bg-[#07080a] border border-white/[0.1] rounded-lg px-3 py-2.5 sm:py-2 text-xs sm:text-sm text-white focus:outline-none focus:border-[#ff6b00] min-h-[42px]"
                 required
               />
             </div>
           )}
 
           <div>
-            <label className="text-xs font-semibold text-[var(--muted)] uppercase tracking-wider block mb-1">
+            <label className="text-[11px] sm:text-xs font-semibold text-zinc-300 uppercase tracking-wider block mb-1">
               Email Address
             </label>
             <input
@@ -105,13 +106,13 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose }) => {
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               placeholder="operator@infinos.com"
-              className="w-full bg-[var(--surface2)] border border-[var(--border)] rounded-lg px-3 py-2 text-sm text-[var(--text)] focus:outline-none focus:border-[var(--orange)]"
+              className="w-full bg-[#07080a] border border-white/[0.1] rounded-lg px-3 py-2.5 sm:py-2 text-xs sm:text-sm text-white focus:outline-none focus:border-[#ff6b00] min-h-[42px]"
               required
             />
           </div>
 
           <div>
-            <label className="text-xs font-semibold text-[var(--muted)] uppercase tracking-wider block mb-1">
+            <label className="text-[11px] sm:text-xs font-semibold text-zinc-300 uppercase tracking-wider block mb-1">
               Password
             </label>
             <input
@@ -119,20 +120,20 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose }) => {
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               placeholder="••••••••"
-              className="w-full bg-[var(--surface2)] border border-[var(--border)] rounded-lg px-3 py-2 text-sm text-[var(--text)] focus:outline-none focus:border-[var(--orange)]"
+              className="w-full bg-[#07080a] border border-white/[0.1] rounded-lg px-3 py-2.5 sm:py-2 text-xs sm:text-sm text-white focus:outline-none focus:border-[#ff6b00] min-h-[42px]"
               required
             />
           </div>
 
           {isRegister && (
             <div>
-              <label className="text-xs font-semibold text-[var(--muted)] uppercase tracking-wider block mb-1">
+              <label className="text-[11px] sm:text-xs font-semibold text-zinc-300 uppercase tracking-wider block mb-1">
                 Requested Role
               </label>
               <select
                 value={role}
                 onChange={(e) => setRole(e.target.value as any)}
-                className="w-full bg-[var(--surface2)] border border-[var(--border)] rounded-lg px-3 py-2 text-sm text-[var(--text)] focus:outline-none focus:border-[var(--orange)]"
+                className="w-full bg-[#07080a] border border-white/[0.1] rounded-lg px-3 py-2 text-xs sm:text-sm text-white focus:outline-none focus:border-[#ff6b00] min-h-[42px]"
               >
                 <option value="OPERATOR">Operator (Manage & Sync Bags)</option>
                 <option value="VIEWER">Viewer (Read-only Telemetry)</option>
@@ -144,7 +145,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose }) => {
           <button
             type="submit"
             disabled={isLoading}
-            className="w-full py-2.5 text-sm font-semibold rounded-lg bg-[var(--orange)] hover:bg-[var(--orange)]/90 text-white transition shadow-sm disabled:opacity-50 mt-2 cursor-pointer font-body"
+            className="w-full py-2.5 sm:py-2.5 text-xs sm:text-sm font-semibold rounded-lg bg-gradient-to-r from-[#ff6b00] to-[#ff8533] hover:from-[#ff7a1a] hover:to-[#ffa059] text-white transition shadow-lg shadow-orange-500/20 disabled:opacity-50 mt-2 cursor-pointer font-body min-h-[44px]"
           >
             {isLoading
               ? 'Authenticating...'
@@ -153,7 +154,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose }) => {
               : 'Sign In'}
           </button>
 
-          <div className="pt-3 border-t border-[var(--border)] text-center text-xs text-[var(--muted)] font-body">
+          <div className="pt-3 border-t border-white/[0.08] text-center text-xs text-zinc-400 font-body">
             {isRegister ? (
               <span>
                 Already have an account?{' '}
@@ -164,7 +165,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose }) => {
                     clearError();
                     setLocalError(null);
                   }}
-                  className="text-[var(--orange)] hover:underline font-medium cursor-pointer"
+                  className="text-[#ff6b00] hover:underline font-semibold cursor-pointer"
                 >
                   Sign in
                 </button>
@@ -179,7 +180,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose }) => {
                     clearError();
                     setLocalError(null);
                   }}
-                  className="text-[var(--orange)] hover:underline font-medium cursor-pointer"
+                  className="text-[#ff6b00] hover:underline font-semibold cursor-pointer"
                 >
                   Create an account
                 </button>
