@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import logoImg from '../assets/logo.png';
 import {
   RefreshCw,
   Plus,
@@ -72,11 +73,15 @@ export const Header: React.FC<HeaderProps> = ({
         <div className="flex items-center gap-3 sm:gap-6 min-w-0">
           {/* Logo */}
           <div
-            className="flex items-center gap-2 sm:gap-2.5 shrink-0 cursor-pointer select-none"
+            className="flex items-center gap-2 sm:gap-3 shrink-0 cursor-pointer select-none"
             onClick={() => onSelectNavTab('dashboard')}
           >
-            <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-lg bg-gradient-to-br from-[#ff6b00] to-[#e05e00] flex items-center justify-center shadow-lg shadow-orange-500/25 shrink-0 border border-orange-400/30">
-              <Radio className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-white" />
+            <div className="h-8 sm:h-9 w-auto flex items-center justify-center rounded-lg bg-black/40 p-1 border border-white/10 shrink-0">
+              <img
+                src={logoImg}
+                alt="INFINOS Logo"
+                className="h-full w-auto object-contain rounded"
+              />
             </div>
             <div className="flex flex-col">
               <div className="flex items-center gap-1.5 sm:gap-2">
@@ -93,7 +98,7 @@ export const Header: React.FC<HeaderProps> = ({
                 </div>
               </div>
               <span className="text-[10px] text-zinc-400 font-body leading-none mt-0.5 hidden sm:block">
-                Smart Delivery Bag Monitoring
+                Smart Delivery Bag Telemetry
               </span>
             </div>
           </div>

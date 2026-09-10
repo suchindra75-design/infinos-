@@ -28,17 +28,17 @@ export const LiveTelemetryCard: React.FC<LiveTelemetryProps> = ({
   const formatValue = (val: number | null | undefined, unit: string) => {
     if (val === null || val === undefined) {
       return (
-        <span className="text-zinc-600 font-data text-2xl sm:text-3xl" title="Sensor reading unavailable">
+        <span className="text-zinc-600 font-data text-3xl sm:text-4xl" title="Sensor reading unavailable">
           —
         </span>
       );
     }
     return (
-      <div className="flex items-baseline gap-1">
-        <span className="font-data tracking-tight font-bold text-3xl xs:text-4xl text-white">
+      <div className="flex items-baseline gap-1.5">
+        <span className="font-data tracking-tight font-extrabold text-4xl sm:text-5xl text-white">
           {val.toFixed(1)}
         </span>
-        <span className="text-xs sm:text-sm font-body font-medium text-zinc-400">{unit}</span>
+        <span className="text-sm sm:text-base font-body font-semibold text-zinc-400">{unit}</span>
       </div>
     );
   };
@@ -103,16 +103,16 @@ export const LiveTelemetryCard: React.FC<LiveTelemetryProps> = ({
   const humidityStatus = getHumidityStatus(latest?.humidity);
 
   return (
-    <div className="space-y-2.5 sm:space-y-3">
+    <div className="space-y-3">
       {/* Telemetry Header with Timestamps & Status */}
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-1.5 px-0.5">
         <div className="flex items-center gap-2">
-          <Activity className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-[#ff6b00] shrink-0" />
-          <h2 className="text-[11px] sm:text-xs font-bold uppercase tracking-wider text-zinc-300 font-display">
+          <Activity className="w-4 h-4 text-[#ff6b00] shrink-0" />
+          <h2 className="text-xs sm:text-xs font-extrabold uppercase tracking-wider text-zinc-200 font-display">
             Live Compartment Telemetry
           </h2>
           {isLoading && (
-            <span className="text-[9px] sm:text-[10px] uppercase font-bold tracking-wider px-1.5 sm:px-2 py-0.5 rounded-full bg-orange-500/15 text-orange-400 border border-orange-500/30 animate-pulse">
+            <span className="text-[9px] sm:text-[10px] uppercase font-bold tracking-wider px-2 py-0.5 rounded-full bg-orange-500/15 text-orange-400 border border-orange-500/30 animate-pulse">
               Syncing...
             </span>
           )}
@@ -120,8 +120,8 @@ export const LiveTelemetryCard: React.FC<LiveTelemetryProps> = ({
 
         <div className="flex items-center gap-2 sm:gap-3 text-[11px] sm:text-xs text-zinc-400 font-body">
           <div className="flex items-center gap-1.5">
-            <Clock className="w-3 h-3 sm:w-3.5 sm:h-3.5 text-zinc-500 shrink-0" />
-            <span>Recorded: <strong className="font-data text-zinc-300 font-normal">{formatTimestamp(summary?.latestReadingTimestamp)}</strong></span>
+            <Clock className="w-3.5 h-3.5 text-zinc-500 shrink-0" />
+            <span>Recorded: <strong className="font-data text-zinc-200 font-medium">{formatTimestamp(summary?.latestReadingTimestamp)}</strong></span>
           </div>
           {statusInfo?.message && (
             <span className="hidden xl:inline text-zinc-500">• {statusInfo.message}</span>
@@ -130,16 +130,16 @@ export const LiveTelemetryCard: React.FC<LiveTelemetryProps> = ({
       </div>
 
       {/* 3 Compartment Cards Grid */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3.5 sm:gap-4">
         {/* Cold Compartment Card */}
-        <div className="bg-[#0e1014] border border-white/[0.08] hover:border-[#00a3ff]/40 rounded-xl p-3.5 sm:p-5 transition relative overflow-hidden group shadow-lg shadow-black/40">
+        <div className="bg-[#0e1014] border border-white/[0.08] hover:border-[#00a3ff]/40 rounded-xl p-4 sm:p-5 transition relative overflow-hidden group shadow-lg shadow-black/40">
           <div className="absolute top-0 left-0 w-1.5 h-full bg-[#00a3ff]" />
-          <div className="flex items-center justify-between gap-2 mb-2 sm:mb-3">
-            <div className="flex items-center gap-2 min-w-0">
-              <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-lg bg-[#00a3ff]/10 border border-[#00a3ff]/25 flex items-center justify-center text-[#00a3ff] shrink-0">
-                <ThermometerSnowflake className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+          <div className="flex items-center justify-between gap-2 mb-3">
+            <div className="flex items-center gap-2.5 min-w-0">
+              <div className="w-8 h-8 rounded-lg bg-[#00a3ff]/10 border border-[#00a3ff]/25 flex items-center justify-center text-[#00a3ff] shrink-0">
+                <ThermometerSnowflake className="w-4 h-4" />
               </div>
-              <span className="text-[11px] sm:text-xs font-bold uppercase tracking-wider text-zinc-300 font-display truncate">
+              <span className="text-xs font-bold uppercase tracking-wider text-zinc-300 font-display truncate">
                 Cold Compartment
               </span>
             </div>
@@ -150,27 +150,27 @@ export const LiveTelemetryCard: React.FC<LiveTelemetryProps> = ({
             </span>
           </div>
 
-          <div className="my-2 sm:my-3 pl-1">
+          <div className="my-3 pl-1">
             {formatValue(latest?.coldTemperature, '°C')}
           </div>
 
-          <div className="pt-2 sm:pt-3 border-t border-white/[0.06] flex items-center justify-between text-[11px] sm:text-xs text-zinc-400 font-body">
+          <div className="pt-3 border-t border-white/[0.06] flex items-center justify-between text-xs text-zinc-400 font-body">
             <span>Target Range</span>
-            <span className="font-data text-zinc-300 font-medium text-[11px]">
+            <span className="font-data text-zinc-200 font-semibold text-xs">
               {settings?.coldTempMin ?? 0.0}°C – {settings?.coldTempMax ?? 8.0}°C
             </span>
           </div>
         </div>
 
         {/* Hot Compartment Card */}
-        <div className="bg-[#0e1014] border border-white/[0.08] hover:border-orange-500/40 rounded-xl p-3.5 sm:p-5 transition relative overflow-hidden group shadow-lg shadow-black/40">
+        <div className="bg-[#0e1014] border border-white/[0.08] hover:border-orange-500/40 rounded-xl p-4 sm:p-5 transition relative overflow-hidden group shadow-lg shadow-black/40">
           <div className="absolute top-0 left-0 w-1.5 h-full bg-[#ff6b00]" />
-          <div className="flex items-center justify-between gap-2 mb-2 sm:mb-3">
-            <div className="flex items-center gap-2 min-w-0">
-              <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-lg bg-orange-500/10 border border-orange-500/25 flex items-center justify-center text-[#ff6b00] shrink-0">
-                <Flame className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+          <div className="flex items-center justify-between gap-2 mb-3">
+            <div className="flex items-center gap-2.5 min-w-0">
+              <div className="w-8 h-8 rounded-lg bg-orange-500/10 border border-orange-500/25 flex items-center justify-center text-[#ff6b00] shrink-0">
+                <Flame className="w-4 h-4" />
               </div>
-              <span className="text-[11px] sm:text-xs font-bold uppercase tracking-wider text-zinc-300 font-display truncate">
+              <span className="text-xs font-bold uppercase tracking-wider text-zinc-300 font-display truncate">
                 Hot Compartment
               </span>
             </div>
@@ -181,27 +181,27 @@ export const LiveTelemetryCard: React.FC<LiveTelemetryProps> = ({
             </span>
           </div>
 
-          <div className="my-2 sm:my-3 pl-1">
+          <div className="my-3 pl-1">
             {formatValue(latest?.hotTemperature, '°C')}
           </div>
 
-          <div className="pt-2 sm:pt-3 border-t border-white/[0.06] flex items-center justify-between text-[11px] sm:text-xs text-zinc-400 font-body">
+          <div className="pt-3 border-t border-white/[0.06] flex items-center justify-between text-xs text-zinc-400 font-body">
             <span>Target Range</span>
-            <span className="font-data text-zinc-300 font-medium text-[11px]">
+            <span className="font-data text-zinc-200 font-semibold text-xs">
               {settings?.hotTempMin ?? 50.0}°C – {settings?.hotTempMax ?? 70.0}°C
             </span>
           </div>
         </div>
 
         {/* Relative Humidity Card */}
-        <div className="bg-[#0e1014] border border-white/[0.08] hover:border-sky-500/40 rounded-xl p-3.5 sm:p-5 transition relative overflow-hidden group shadow-lg shadow-black/40 sm:col-span-2 lg:col-span-1">
+        <div className="bg-[#0e1014] border border-white/[0.08] hover:border-sky-500/40 rounded-xl p-4 sm:p-5 transition relative overflow-hidden group shadow-lg shadow-black/40 sm:col-span-2 lg:col-span-1">
           <div className="absolute top-0 left-0 w-1.5 h-full bg-sky-500" />
-          <div className="flex items-center justify-between gap-2 mb-2 sm:mb-3">
-            <div className="flex items-center gap-2 min-w-0">
-              <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-lg bg-sky-500/10 border border-sky-500/25 flex items-center justify-center text-sky-400 shrink-0">
-                <Droplets className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+          <div className="flex items-center justify-between gap-2 mb-3">
+            <div className="flex items-center gap-2.5 min-w-0">
+              <div className="w-8 h-8 rounded-lg bg-sky-500/10 border border-sky-500/25 flex items-center justify-center text-sky-400 shrink-0">
+                <Droplets className="w-4 h-4" />
               </div>
-              <span className="text-[11px] sm:text-xs font-bold uppercase tracking-wider text-zinc-300 font-display truncate">
+              <span className="text-xs font-bold uppercase tracking-wider text-zinc-300 font-display truncate">
                 Relative Humidity
               </span>
             </div>
@@ -212,13 +212,13 @@ export const LiveTelemetryCard: React.FC<LiveTelemetryProps> = ({
             </span>
           </div>
 
-          <div className="my-2 sm:my-3 pl-1">
+          <div className="my-3 pl-1">
             {formatValue(latest?.humidity, '%')}
           </div>
 
-          <div className="pt-2 sm:pt-3 border-t border-white/[0.06] flex items-center justify-between text-[11px] sm:text-xs text-zinc-400 font-body">
+          <div className="pt-3 border-t border-white/[0.06] flex items-center justify-between text-xs text-zinc-400 font-body">
             <span>Target Range</span>
-            <span className="font-data text-zinc-300 font-medium text-[11px]">
+            <span className="font-data text-zinc-200 font-semibold text-xs">
               {settings?.humidityMin ?? 20.0}% – {settings?.humidityMax ?? 85.0}%
             </span>
           </div>
@@ -227,3 +227,4 @@ export const LiveTelemetryCard: React.FC<LiveTelemetryProps> = ({
     </div>
   );
 };
+
