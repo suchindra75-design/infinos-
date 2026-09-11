@@ -32,6 +32,7 @@ export interface SafeDevice {
   thingSpeakChannelId: string;
   fieldMappings?: DeviceFieldMapping[] | null;
   status: DeviceStatus;
+  isArchived?: boolean;
   lastSeenAt: string | null;
   createdAt: string;
   updatedAt: string;

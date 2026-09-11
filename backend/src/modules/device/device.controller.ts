@@ -5,7 +5,8 @@ import { AppError } from '../../middleware/error.middleware.js';
 export class DeviceController {
   async list(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
-      const devices = await deviceService.listDevices();
+      const includeArchived = req.query.includeArchived === 'true';
+      const devices = await deviceService.listDevices(includeArchived);
       res.status(200).json({
         success: true,
         data: {

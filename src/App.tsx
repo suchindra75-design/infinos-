@@ -19,6 +19,7 @@ import { AlertsList } from './components/AlertsList';
 import { SettingsModal } from './components/SettingsModal';
 import { ExportModal } from './components/ExportModal';
 import { AddDeviceModal } from './components/AddDeviceModal';
+import { RemoveDeviceModal } from './components/RemoveDeviceModal';
 import { StatusBanner } from './components/StatusBanner';
 import { AuthModal } from './components/AuthModal';
 
@@ -58,6 +59,7 @@ const DashboardContent: React.FC = () => {
   const [isAddDeviceOpen, setIsAddDeviceOpen] = useState<boolean>(false);
   const [isSettingsOpen, setIsSettingsOpen] = useState<boolean>(false);
   const [isExportOpen, setIsExportOpen] = useState<boolean>(false);
+  const [isRemoveDeviceOpen, setIsRemoveDeviceOpen] = useState<boolean>(false);
 
   // Request guards to prevent duplicate/overlapping fetches
   const isFetchingRef = useRef<boolean>(false);
@@ -459,6 +461,7 @@ const DashboardContent: React.FC = () => {
                   onOpenSettings={() => setIsSettingsOpen(true)}
                   onOpenExport={() => setIsExportOpen(true)}
                   onOpenAddDevice={() => setIsAddDeviceOpen(true)}
+                  onOpenRemoveDevice={() => setIsRemoveDeviceOpen(true)}
                   isLoading={isLoadingDevices}
                 />
 
@@ -600,6 +603,13 @@ const DashboardContent: React.FC = () => {
             onClose={() => setIsExportOpen(false)}
             deviceId={selectedDevice.id}
             deviceCode={selectedDevice.deviceCode}
+          />
+
+          <RemoveDeviceModal
+            isOpen={isRemoveDeviceOpen}
+            onClose={() => setIsRemoveDeviceOpen(false)}
+            device={selectedDevice}
+            onDeviceUpdated={fetchDevices}
           />
         </>
       )}

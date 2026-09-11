@@ -157,8 +157,9 @@ class ApiClient {
   // DEVICE MANAGEMENT APIs
   // ==========================================
   public readonly devices = {
-    list: async () => {
-      const res = await this.request<{ devices: SafeDevice[] }>('/devices');
+    list: async (includeArchived = false) => {
+      const queryString = includeArchived ? '?includeArchived=true' : '';
+      const res = await this.request<{ devices: SafeDevice[] }>(`/devices${queryString}`);
       return res.data.devices;
     },
 
@@ -173,6 +174,29 @@ class ApiClient {
         body: JSON.stringify(data),
       });
       return res.data.device;
+    },
+
+    archive: async (id: string) => {
+      const res = await this.request<{ device: SafeDevice }>(`/devices/${id}`, {
+        method: 'PATCH',
+        body: JSON.stringify({ isArchived: true }),
+      });
+      return res.data.device;
+    },
+
+    unarchive: async (id: string) => {
+      const res = await this.request<{ device: SafeDevice }>(`/devices/${id}`, {
+        method: 'PATCH',
+        body: JSON.stringify({ isArchived: false }),
+      });
+      return res.data.device;
+    },
+
+    delete: async (id: string) => {
+      const res = await this.request<{ message: string }>(`/devices/${id}`, {
+        method: 'DELETE',
+      });
+      return res.data;
     },
 
     testConnection: async (data: { thingSpeakChannelId: string; thingSpeakReadApiKey?: string }) => {

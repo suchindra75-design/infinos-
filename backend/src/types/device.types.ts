@@ -7,6 +7,7 @@ export interface SafeDevice {
   thingSpeakChannelId: string;
   fieldMappings?: import('./mapping.types.js').DeviceFieldMapping[] | null;
   status: DeviceStatus;
+  isArchived?: boolean;
   lastSeenAt: Date | null;
   createdAt: Date;
   updatedAt: Date;

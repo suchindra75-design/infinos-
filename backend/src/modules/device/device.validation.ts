@@ -51,6 +51,7 @@ export const updateDeviceSchema = z.object({
     .optional()
     .or(z.literal('')),
   fieldMappings: z.array(z.any()).optional(),
+  isArchived: z.boolean().optional(),
 });
 
 export const testConnectionSchema = z.object({

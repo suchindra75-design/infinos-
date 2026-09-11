@@ -29,6 +29,7 @@ export class DeviceService {
     thingSpeakReadKey: string | null;
     fieldMappings?: any;
     status: any;
+    isArchived?: boolean;
     lastSeenAt: Date | null;
     createdAt: Date;
     updatedAt: Date;
@@ -41,6 +42,7 @@ export class DeviceService {
       thingSpeakChannelId: device.thingSpeakChannelId,
       fieldMappings: (device.fieldMappings as any) || null,
       status: device.status,
+      isArchived: device.isArchived ?? false,
       lastSeenAt: device.lastSeenAt,
       createdAt: device.createdAt,
       updatedAt: device.updatedAt,
@@ -50,10 +52,15 @@ export class DeviceService {
   }
 
   /**
-   * Retrieves all registered devices.
+   * Retrieves registered devices. By default filters out archived bags.
    */
-  async listDevices(): Promise<SafeDevice[]> {
+  async listDevices(includeArchived = false): Promise<SafeDevice[]> {
+    const where: any = {};
+    if (!includeArchived) {
+      where.isArchived = false;
+    }
     const devices = await prisma.device.findMany({
+      where,
       orderBy: { createdAt: 'desc' },
     });
     return devices.map((d: any) => this.toSafeDevice(d));
@@ -148,10 +155,15 @@ export class DeviceService {
       thingSpeakChannelId?: string;
       thingSpeakReadKey?: string;
       fieldMappings?: any;
+      isArchived?: boolean;
     } = {};
 
     if (input.name !== undefined) {
       updateData.name = input.name.trim();
+    }
+
+    if (input.isArchived !== undefined) {
+      updateData.isArchived = input.isArchived;
     }
 
     if (input.fieldMappings !== undefined) {

@@ -2,11 +2,10 @@ import React from 'react';
 import {
   SlidersHorizontal,
   Download,
-  CheckCircle2,
   AlertCircle,
-  XCircle,
   Plus,
-  Radio,
+  Trash2,
+  Archive,
 } from 'lucide-react';
 import { SafeDevice, DeviceStatus } from '../types';
 import { useAuth } from '../context/AuthContext';
@@ -18,6 +17,7 @@ interface DeviceSelectorProps {
   onOpenSettings: () => void;
   onOpenExport: () => void;
   onOpenAddDevice: () => void;
+  onOpenRemoveDevice: () => void;
   isLoading: boolean;
 }
 
@@ -28,14 +28,24 @@ export const DeviceSelector: React.FC<DeviceSelectorProps> = ({
   onOpenSettings,
   onOpenExport,
   onOpenAddDevice,
+  onOpenRemoveDevice,
   isLoading,
 }) => {
   const { user, isAuthenticated } = useAuth();
   const canManageSettings =
     isAuthenticated && (user?.role === 'ADMIN' || (user?.role === 'OPERATOR' && selectedDevice?.ownerId === user.id));
 
-  const getStatusBadge = (status: DeviceStatus) => {
-    switch (status) {
+  const getStatusBadge = (device: SafeDevice) => {
+    if (device.isArchived) {
+      return (
+        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-500/15 text-amber-400 border border-amber-500/30 shrink-0" title="Device is archived (historical telemetry preserved)">
+          <Archive className="w-3 h-3 text-amber-400 shrink-0" />
+          ARCHIVED
+        </span>
+      );
+    }
+
+    switch (device.status) {
       case 'ONLINE':
         return (
           <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-500/10 text-emerald-400 border border-emerald-500/30 shrink-0">
@@ -98,7 +108,7 @@ export const DeviceSelector: React.FC<DeviceSelectorProps> = ({
           </label>
           {selectedDevice && (
             <div className="flex items-center gap-2 sm:hidden">
-              {getStatusBadge(selectedDevice.status)}
+              {getStatusBadge(selectedDevice)}
             </div>
           )}
         </div>
@@ -115,7 +125,7 @@ export const DeviceSelector: React.FC<DeviceSelectorProps> = ({
           >
             {devices.map((device) => (
               <option key={device.id} value={device.id}>
-                {device.deviceCode} — {device.name}
+                {device.deviceCode} — {device.name} {device.isArchived ? '(Archived)' : ''}
               </option>
             ))}
           </select>
@@ -126,7 +136,7 @@ export const DeviceSelector: React.FC<DeviceSelectorProps> = ({
 
         {selectedDevice && (
           <div className="hidden sm:flex items-center gap-2 shrink-0">
-            {getStatusBadge(selectedDevice.status)}
+            {getStatusBadge(selectedDevice)}
             <span className="text-xs text-zinc-500 hidden xl:inline font-body">
               Channel: <span className="font-data text-zinc-300 font-normal">{selectedDevice.thingSpeakChannelId}</span>
             </span>
@@ -136,7 +146,7 @@ export const DeviceSelector: React.FC<DeviceSelectorProps> = ({
 
       {/* Action Controls for Selected Device */}
       {selectedDevice && (
-        <div className="grid grid-cols-2 md:flex items-center gap-2 w-full md:w-auto pt-2.5 md:pt-0 border-t md:border-t-0 border-white/[0.06]">
+        <div className="grid grid-cols-2 sm:grid-cols-3 md:flex items-center gap-2 w-full md:w-auto pt-2.5 md:pt-0 border-t md:border-t-0 border-white/[0.06]">
           <button
             onClick={onOpenExport}
             className="inline-flex items-center justify-center gap-1.5 px-3 py-2 sm:py-1.5 text-xs font-medium rounded-lg bg-[#14171d] hover:bg-[#1a1e27] text-zinc-300 border border-white/[0.08] hover:border-orange-500/30 transition cursor-pointer min-h-[40px] sm:min-h-[36px]"
@@ -146,20 +156,30 @@ export const DeviceSelector: React.FC<DeviceSelectorProps> = ({
             <span>Audit Export</span>
           </button>
 
-          {canManageSettings ? (
-            <button
-              onClick={onOpenSettings}
-              className="inline-flex items-center justify-center gap-1.5 px-3 py-2 sm:py-1.5 text-xs font-medium rounded-lg bg-[#14171d] hover:bg-[#1a1e27] text-zinc-300 border border-white/[0.08] hover:border-orange-500/30 transition cursor-pointer min-h-[40px] sm:min-h-[36px]"
-              title="Configure compartment temperature and humidity thresholds"
-            >
-              <SlidersHorizontal className="w-3.5 h-3.5 text-zinc-400 shrink-0" />
-              <span>Thresholds</span>
-            </button>
-          ) : (
-            <div className="hidden md:block" />
+          {canManageSettings && (
+            <>
+              <button
+                onClick={onOpenSettings}
+                className="inline-flex items-center justify-center gap-1.5 px-3 py-2 sm:py-1.5 text-xs font-medium rounded-lg bg-[#14171d] hover:bg-[#1a1e27] text-zinc-300 border border-white/[0.08] hover:border-orange-500/30 transition cursor-pointer min-h-[40px] sm:min-h-[36px]"
+                title="Configure compartment temperature and humidity thresholds"
+              >
+                <SlidersHorizontal className="w-3.5 h-3.5 text-zinc-400 shrink-0" />
+                <span>Thresholds</span>
+              </button>
+
+              <button
+                onClick={onOpenRemoveDevice}
+                className="inline-flex items-center justify-center gap-1.5 px-3 py-2 sm:py-1.5 text-xs font-medium rounded-lg bg-[#14171d] hover:bg-rose-950/40 text-zinc-300 hover:text-rose-300 border border-white/[0.08] hover:border-rose-500/40 transition cursor-pointer min-h-[40px] sm:min-h-[36px]"
+                title="Remove or archive this Smart Delivery Bag"
+              >
+                <Trash2 className="w-3.5 h-3.5 text-rose-400 shrink-0" />
+                <span>Remove Bag</span>
+              </button>
+            </>
           )}
         </div>
       )}
     </div>
   );
 };
+

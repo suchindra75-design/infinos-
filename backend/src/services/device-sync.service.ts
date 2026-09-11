@@ -203,6 +203,7 @@ export class DeviceSyncService {
    */
   async syncAllDevices(): Promise<DeviceSyncSummary> {
     const devices = await prisma.device.findMany({
+      where: { isArchived: false },
       orderBy: { createdAt: 'asc' },
     });
 

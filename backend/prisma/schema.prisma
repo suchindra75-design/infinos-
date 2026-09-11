@@ -64,6 +64,7 @@ model Device {
   thingSpeakReadKey   String?
   fieldMappings       Json?
   status              DeviceStatus @default(OFFLINE)
+  isArchived          Boolean      @default(false)
   lastSeenAt          DateTime?
   createdAt           DateTime     @default(now())
   updatedAt           DateTime     @updatedAt
@@ -75,6 +76,7 @@ model Device {
   alerts   Alert[]
 
   @@index([status])
+  @@index([isArchived])
   @@index([ownerId])
   @@map("devices")
 }
