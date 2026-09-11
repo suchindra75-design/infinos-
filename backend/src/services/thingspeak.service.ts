@@ -5,6 +5,7 @@ import {
   ThingSpeakRawFeed,
   NormalizedSensorReading,
   ThingSpeakConnectionResult,
+  ThingSpeakChannelMeta,
   GetFeedsOptions,
 } from '../types/thingspeak.types.js';
 
@@ -23,7 +24,7 @@ export class ThingSpeakService {
    * Helper to parse and normalize float values safely.
    * Produces null if missing, empty, or not a valid finite number.
    */
-  private parseNumberOrNull(value: string | null | undefined): number | null {
+  private parseNumberOrNull(value: string | number | null | undefined): number | null {
     if (value === null || value === undefined) {
       return null;
     }
@@ -36,10 +37,79 @@ export class ThingSpeakService {
   }
 
   /**
+   * Dynamically discovers all configured fields from ThingSpeak channel metadata.
+   * Infers heuristic labels, metrics, zones, folds, and units.
+   */
+  public discoverChannelFields(channelMeta: ThingSpeakChannelMeta): import('../types/mapping.types.js').DeviceFieldMapping[] {
+    if (!channelMeta) return [];
+    const fields: import('../types/mapping.types.js').DeviceFieldMapping[] = [];
+
+    for (let num = 1; num <= 8; num++) {
+      const fieldKey = `field${num}` as keyof ThingSpeakChannelMeta;
+      const rawLabel = channelMeta[fieldKey];
+      if (typeof rawLabel === 'string' && rawLabel.trim().length > 0) {
+        const label = rawLabel.trim();
+        const lower = label.toLowerCase();
+
+        let metric: 'temperature' | 'humidity' | 'other' = 'temperature';
+        let zone: 'cold' | 'hot' | 'ambient' | 'none' = 'none';
+        let unit = '°C';
+        let fold: string | undefined = undefined;
+
+        if (lower.includes('humid') || lower.includes('%')) {
+          metric = 'humidity';
+          zone = 'ambient';
+          unit = '%';
+        } else if (lower.includes('cold') || lower.includes('chilled') || lower.includes('fridge')) {
+          metric = 'temperature';
+          zone = 'cold';
+          unit = '°C';
+        } else if (lower.includes('hot') || lower.includes('warm') || lower.includes('heater')) {
+          metric = 'temperature';
+          zone = 'hot';
+          unit = '°C';
+        } else if (lower.includes('temp')) {
+          metric = 'temperature';
+          unit = '°C';
+        } else {
+          metric = 'other';
+          unit = '';
+        }
+
+        // Try extracting fold number from label if present (e.g. "Fold 1", "#1", "Compartment 2")
+        const foldMatch = lower.match(/(?:fold|compartment|zone|unit|#)\s*([0-9]+)/);
+        if (foldMatch && foldMatch[1]) {
+          fold = foldMatch[1];
+        }
+
+        fields.push({
+          fieldNumber: num,
+          fieldKey: `field${num}`,
+          label,
+          metric,
+          zone,
+          fold,
+          unit,
+        });
+      }
+    }
+
+    // Fallback if channel metadata did not explicitly configure field labels (e.g., standard demo channel 3297681)
+    if (fields.length === 0) {
+      fields.push(
+        { fieldNumber: 1, fieldKey: 'field1', label: 'Cold Temperature', metric: 'temperature', zone: 'cold', fold: '1', unit: '°C' },
+        { fieldNumber: 3, fieldKey: 'field3', label: 'Hot Temperature', metric: 'temperature', zone: 'hot', fold: '1', unit: '°C' },
+        { fieldNumber: 4, fieldKey: 'field4', label: 'Humidity', metric: 'humidity', zone: 'ambient', unit: '%' }
+      );
+    }
+
+    return fields;
+  }
+
+  /**
    * Normalizes a ThingSpeak raw feed into the INFINOS domain structure:
-   * - ThingSpeak Field 1 -> Cold Temperature
-   * - ThingSpeak Field 3 -> Hot Temperature
-   * - ThingSpeak Field 4 -> Humidity
+   * Captures all dynamic fields field1..field8 into fieldValues map.
+   * Maintains coldTemperature, hotTemperature, humidity for legacy compatibility.
    */
   public normalizeFeed(feed: ThingSpeakRawFeed, channelId: string | number): NormalizedSensorReading {
     let recordedAt = new Date().toISOString();
@@ -50,13 +120,20 @@ export class ThingSpeakService {
       }
     }
 
+    const fieldValues: Record<string, number | null> = {};
+    for (let num = 1; num <= 8; num++) {
+      const key = `field${num}` as keyof ThingSpeakRawFeed;
+      fieldValues[`field${num}`] = this.parseNumberOrNull(feed[key]);
+    }
+
     return {
       entryId: Number(feed.entry_id),
       channelId,
       recordedAt,
-      coldTemperature: this.parseNumberOrNull(feed.field1), // Field 1 -> Cold Temperature
-      hotTemperature: this.parseNumberOrNull(feed.field3),  // Field 3 -> Hot Temperature
-      humidity: this.parseNumberOrNull(feed.field4),        // Field 4 -> Humidity
+      coldTemperature: fieldValues['field1'] ?? null, // Legacy Field 1
+      hotTemperature: fieldValues['field3'] ?? null,  // Legacy Field 3
+      humidity: fieldValues['field4'] ?? null,        // Legacy Field 4
+      fieldValues,
     };
   }
 
@@ -307,12 +384,15 @@ export class ThingSpeakService {
         readApiKey
       );
 
+      const discoveredFields = data?.channel ? this.discoverChannelFields(data.channel) : [];
+
       return {
         connected: true,
         connectionStatus: 'CONNECTED',
         channelId: cleanChannelId,
         channelName: data?.channel?.name || 'ThingSpeak Channel',
         message: 'Successfully connected to ThingSpeak channel',
+        discoveredFields,
       };
     } catch (err: any) {
       if (err instanceof AppError) {

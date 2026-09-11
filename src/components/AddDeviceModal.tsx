@@ -1,13 +1,34 @@
 import React, { useState } from 'react';
-import { X, Plus, Radio, Key, CheckCircle2, AlertCircle, RefreshCw } from 'lucide-react';
+import { X, Plus, Radio, Key, CheckCircle2, AlertCircle, RefreshCw, ChevronDown, Settings2 } from 'lucide-react';
 import { api } from '../api/client';
-import { CreateDeviceInput } from '../types';
+import { CreateDeviceInput, DeviceFieldMapping } from '../types';
 
 interface AddDeviceModalProps {
   isOpen: boolean;
   onClose: () => void;
   onDeviceCreated: () => void;
 }
+
+const METRIC_OPTIONS = [
+  { value: 'temperature', label: 'Temperature' },
+  { value: 'humidity', label: 'Humidity' },
+  { value: 'other', label: 'Other' },
+] as const;
+
+const ZONE_OPTIONS = [
+  { value: 'cold', label: 'Cold' },
+  { value: 'hot', label: 'Hot' },
+  { value: 'ambient', label: 'Ambient' },
+  { value: 'none', label: 'None' },
+] as const;
+
+const ZONE_COLORS: Record<string, string> = {
+  cold: 'text-[#00a3ff] bg-[#00a3ff]/10 border-[#00a3ff]/30',
+  hot: 'text-[#ff6b00] bg-orange-500/10 border-orange-500/30',
+  ambient: 'text-sky-400 bg-sky-500/10 border-sky-500/30',
+  none: 'text-zinc-400 bg-zinc-800/80 border-zinc-700',
+  humidity: 'text-sky-400 bg-sky-500/10 border-sky-500/30',
+};
 
 export const AddDeviceModal: React.FC<AddDeviceModalProps> = ({
   isOpen,
@@ -24,7 +45,12 @@ export const AddDeviceModal: React.FC<AddDeviceModalProps> = ({
     connected: boolean;
     channelName?: string;
     message: string;
+    discoveredFields?: DeviceFieldMapping[];
   } | null>(null);
+
+  // Dynamic field mappings discovered from ThingSpeak
+  const [fieldMappings, setFieldMappings] = useState<DeviceFieldMapping[]>([]);
+  const [showFieldConfig, setShowFieldConfig] = useState(false);
 
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -40,6 +66,8 @@ export const AddDeviceModal: React.FC<AddDeviceModalProps> = ({
     setError(null);
     setTestResult(null);
     setIsTesting(true);
+    setFieldMappings([]);
+    setShowFieldConfig(false);
 
     try {
       const result = await api.devices.testConnection({
@@ -47,11 +75,25 @@ export const AddDeviceModal: React.FC<AddDeviceModalProps> = ({
         thingSpeakReadApiKey: thingSpeakReadApiKey.trim() || undefined,
       });
       setTestResult(result);
+
+      // Pre-populate discovered field mappings
+      if (result.connected && result.discoveredFields && result.discoveredFields.length > 0) {
+        setFieldMappings(result.discoveredFields);
+        setShowFieldConfig(true);
+      }
     } catch (err: any) {
       setError(err.message || 'Connection test failed');
     } finally {
       setIsTesting(false);
     }
+  };
+
+  const updateFieldMapping = (index: number, updates: Partial<DeviceFieldMapping>) => {
+    setFieldMappings((prev) => {
+      const next = [...prev];
+      next[index] = { ...next[index], ...updates };
+      return next;
+    });
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -72,6 +114,7 @@ export const AddDeviceModal: React.FC<AddDeviceModalProps> = ({
         name: name.trim(),
         thingSpeakChannelId: thingSpeakChannelId.trim(),
         thingSpeakReadApiKey: thingSpeakReadApiKey.trim() || undefined,
+        fieldMappings: fieldMappings.length > 0 ? fieldMappings : undefined,
       };
 
       await api.devices.create(input);
@@ -93,7 +136,7 @@ export const AddDeviceModal: React.FC<AddDeviceModalProps> = ({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-black/85 backdrop-blur-md animate-backdrop-fade overflow-y-auto">
-      <div className="bg-[#0e1014] border border-white/[0.1] rounded-2xl w-full max-w-md my-auto shadow-2xl shadow-black/80 animate-modal-pop overflow-hidden flex flex-col max-h-[90vh] text-zinc-200">
+      <div className="bg-[#0e1014] border border-white/[0.1] rounded-2xl w-full max-w-lg my-auto shadow-2xl shadow-black/80 animate-modal-pop overflow-hidden flex flex-col max-h-[90vh] text-zinc-200">
         {/* Header */}
         <div className="px-4 sm:px-6 py-3.5 sm:py-4 border-b border-white/[0.08] flex items-center justify-between shrink-0">
           <div className="flex items-center gap-2.5">
@@ -147,6 +190,11 @@ export const AddDeviceModal: React.FC<AddDeviceModalProps> = ({
                 <span className="font-semibold block">{testResult.message}</span>
                 {testResult.channelName && (
                   <span className="text-[10px] text-zinc-400 font-data">Channel: {testResult.channelName}</span>
+                )}
+                {testResult.connected && fieldMappings.length > 0 && (
+                  <span className="text-[10px] text-emerald-400 ml-2">
+                    • {fieldMappings.length} field{fieldMappings.length > 1 ? 's' : ''} discovered
+                  </span>
                 )}
               </div>
             </div>
@@ -227,6 +275,103 @@ export const AddDeviceModal: React.FC<AddDeviceModalProps> = ({
               Protected by AES-256 server-side encryption.
             </p>
           </div>
+
+          {/* Dynamic Field Mapping Configuration */}
+          {fieldMappings.length > 0 && (
+            <div className="border border-white/[0.08] rounded-lg overflow-hidden">
+              <button
+                type="button"
+                onClick={() => setShowFieldConfig(!showFieldConfig)}
+                className="w-full px-3 py-2.5 flex items-center justify-between text-xs font-semibold text-zinc-200 bg-[#07080a] hover:bg-[#0d0e12] transition cursor-pointer"
+              >
+                <div className="flex items-center gap-2">
+                  <Settings2 className="w-3.5 h-3.5 text-[#ff6b00]" />
+                  <span className="uppercase tracking-wider">Channel Field Mapping</span>
+                  <span className="text-[10px] text-zinc-500 font-normal normal-case">
+                    ({fieldMappings.length} field{fieldMappings.length > 1 ? 's' : ''})
+                  </span>
+                </div>
+                <ChevronDown className={`w-4 h-4 text-zinc-400 transition-transform ${showFieldConfig ? 'rotate-180' : ''}`} />
+              </button>
+
+              {showFieldConfig && (
+                <div className="p-3 space-y-2.5 bg-[#0a0b0e] border-t border-white/[0.06]">
+                  <p className="text-[10px] text-zinc-500 mb-2">
+                    Review discovered fields. Adjust metric type, zone, and labels as needed.
+                  </p>
+
+                  {fieldMappings.map((mapping, idx) => (
+                    <div
+                      key={mapping.fieldKey}
+                      className="bg-[#0e1014] border border-white/[0.08] rounded-lg p-2.5 space-y-2"
+                    >
+                      {/* Field header */}
+                      <div className="flex items-center justify-between gap-2">
+                        <div className="flex items-center gap-2">
+                          <span className="text-[9px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded bg-zinc-800 text-zinc-400 border border-white/[0.08] font-data">
+                            {mapping.fieldKey}
+                          </span>
+                          <span className={`text-[9px] font-bold uppercase px-1.5 py-0.5 rounded border ${
+                            ZONE_COLORS[mapping.metric === 'humidity' ? 'humidity' : (mapping.zone || 'none')]
+                          }`}>
+                            {mapping.zone !== 'none' ? mapping.zone : mapping.metric}
+                          </span>
+                        </div>
+                        <span className="text-[10px] text-zinc-500 font-data">{mapping.unit}</span>
+                      </div>
+
+                      {/* Label */}
+                      <input
+                        type="text"
+                        value={mapping.label}
+                        onChange={(e) => updateFieldMapping(idx, { label: e.target.value })}
+                        className="w-full bg-[#07080a] border border-white/[0.06] rounded px-2 py-1.5 text-[11px] font-data text-white focus:outline-none focus:border-[#ff6b00]"
+                        placeholder="Field label"
+                      />
+
+                      {/* Metric + Zone selectors */}
+                      <div className="flex gap-2">
+                        <select
+                          value={mapping.metric}
+                          onChange={(e) => {
+                            const metric = e.target.value as DeviceFieldMapping['metric'];
+                            const updates: Partial<DeviceFieldMapping> = { metric };
+                            if (metric === 'humidity') {
+                              updates.zone = 'ambient';
+                              updates.unit = '%';
+                            } else if (metric === 'temperature') {
+                              updates.unit = '°C';
+                            } else {
+                              updates.zone = 'none';
+                              updates.unit = '';
+                            }
+                            updateFieldMapping(idx, updates);
+                          }}
+                          className="flex-1 bg-[#07080a] border border-white/[0.06] rounded px-2 py-1.5 text-[11px] text-white focus:outline-none focus:border-[#ff6b00] cursor-pointer"
+                        >
+                          {METRIC_OPTIONS.map((opt) => (
+                            <option key={opt.value} value={opt.value}>{opt.label}</option>
+                          ))}
+                        </select>
+
+                        {mapping.metric === 'temperature' && (
+                          <select
+                            value={mapping.zone || 'none'}
+                            onChange={(e) => updateFieldMapping(idx, { zone: e.target.value as DeviceFieldMapping['zone'] })}
+                            className="flex-1 bg-[#07080a] border border-white/[0.06] rounded px-2 py-1.5 text-[11px] text-white focus:outline-none focus:border-[#ff6b00] cursor-pointer"
+                          >
+                            {ZONE_OPTIONS.map((opt) => (
+                              <option key={opt.value} value={opt.value}>{opt.label}</option>
+                            ))}
+                          </select>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
 
           {/* Action Buttons */}
           <div className="pt-3 border-t border-white/[0.08] flex items-center justify-end gap-2 font-body">

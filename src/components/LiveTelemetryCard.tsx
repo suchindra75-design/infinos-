@@ -7,7 +7,7 @@ import {
   Clock,
   AlertTriangle,
 } from 'lucide-react';
-import { AnalyticsSummary, DeviceStatusResponse, DeviceSettings } from '../types';
+import { AnalyticsSummary, DeviceStatusResponse, DeviceSettings, DeviceFieldMapping, SensorReading } from '../types';
 
 interface LiveTelemetryProps {
   summary: AnalyticsSummary | null;
@@ -15,6 +15,8 @@ interface LiveTelemetryProps {
   settings: DeviceSettings | null;
   isLoading: boolean;
   error: string | null;
+  fieldMappings?: DeviceFieldMapping[] | null;
+  latestReading?: SensorReading | null;
 }
 
 /**
@@ -76,6 +78,8 @@ export const LiveTelemetryCard: React.FC<LiveTelemetryProps> = ({
   settings,
   isLoading,
   error,
+  fieldMappings,
+  latestReading,
 }) => {
   const latest = summary?.latest;
   const animCold = useAnimatedNumber(latest?.coldTemperature);
@@ -171,6 +175,8 @@ export const LiveTelemetryCard: React.FC<LiveTelemetryProps> = ({
   const hotStatus = getHotStatus(latest?.hotTemperature);
   const humidityStatus = getHumidityStatus(latest?.humidity);
 
+  const hasDynamicMappings = fieldMappings && fieldMappings.length > 0;
+
   return (
     <div className="space-y-3">
       {/* Telemetry Header with Timestamps & Status */}
@@ -202,113 +208,200 @@ export const LiveTelemetryCard: React.FC<LiveTelemetryProps> = ({
         </div>
       </div>
 
-      {/* 3 Compartment Cards Grid */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3.5 sm:gap-4">
-        {/* Cold Compartment Card */}
-        <div className={`bg-[#0e1014] border rounded-xl p-4 sm:p-5 transition-all duration-300 relative overflow-hidden group shadow-lg shadow-black/40 ${
-          isFreshReading
-            ? 'border-[#00a3ff]/60 shadow-[#00a3ff]/10'
-            : 'border-white/[0.08] hover:border-[#00a3ff]/40'
-        }`}>
-          <div className="absolute top-0 left-0 w-1.5 h-full bg-[#00a3ff]" />
-          <div className="flex items-center justify-between gap-2 mb-3">
-            <div className="flex items-center gap-2.5 min-w-0">
-              <div className="w-8 h-8 rounded-lg bg-[#00a3ff]/10 border border-[#00a3ff]/25 flex items-center justify-center text-[#00a3ff] shrink-0 group-hover:scale-105 transition-transform">
-                <ThermometerSnowflake className="w-4 h-4" />
+      {/* Dynamic or Legacy Compartment Cards Grid */}
+      {hasDynamicMappings ? (
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3.5 sm:gap-4">
+          {fieldMappings.map((m) => {
+            const rawVal = latestReading?.fieldValues?.[m.fieldKey] ?? (
+              m.zone === 'cold' ? latest?.coldTemperature :
+              m.zone === 'hot' ? latest?.hotTemperature :
+              m.metric === 'humidity' ? latest?.humidity : null
+            );
+
+            const isCold = m.zone === 'cold';
+            const isHot = m.zone === 'hot';
+            const isHum = m.metric === 'humidity';
+
+            const status = isCold ? getColdStatus(rawVal) : isHot ? getHotStatus(rawVal) : isHum ? getHumidityStatus(rawVal) : (
+              rawVal !== null
+                ? { label: 'Optimal', color: 'text-emerald-400 bg-emerald-500/15 border-emerald-500/30' }
+                : { label: 'Unavailable', color: 'text-zinc-400 bg-zinc-800/80 border-zinc-700' }
+            );
+
+            const unit = m.unit || (m.metric === 'temperature' ? '°C' : m.metric === 'humidity' ? '%' : '');
+            const accentColor = isCold ? '#00a3ff' : isHot ? '#ff6b00' : isHum ? '#38bdf8' : '#10b981';
+
+            return (
+              <div
+                key={m.fieldKey}
+                className={`bg-[#0e1014] border rounded-xl p-4 sm:p-5 transition-all duration-300 relative overflow-hidden group shadow-lg shadow-black/40 ${
+                  isFreshReading
+                    ? 'border-white/40 shadow-white/5'
+                    : 'border-white/[0.08] hover:border-white/20'
+                }`}
+              >
+                <div className="absolute top-0 left-0 w-1.5 h-full" style={{ backgroundColor: accentColor }} />
+                <div className="flex items-center justify-between gap-2 mb-3">
+                  <div className="flex items-center gap-2.5 min-w-0">
+                    <div
+                      className="w-8 h-8 rounded-lg flex items-center justify-center shrink-0 group-hover:scale-105 transition-transform"
+                      style={{
+                        backgroundColor: `${accentColor}15`,
+                        borderColor: `${accentColor}40`,
+                        color: accentColor,
+                        borderWidth: '1px',
+                      }}
+                    >
+                      {isCold ? (
+                        <ThermometerSnowflake className="w-4 h-4" />
+                      ) : isHot ? (
+                        <Flame className="w-4 h-4" />
+                      ) : isHum ? (
+                        <Droplets className="w-4 h-4" />
+                      ) : (
+                        <Activity className="w-4 h-4" />
+                      )}
+                    </div>
+                    <span className="text-xs font-bold uppercase tracking-wider text-zinc-300 font-display truncate" title={m.label}>
+                      {m.label}
+                    </span>
+                  </div>
+                  <span className={`text-[9px] sm:text-[10px] uppercase font-bold px-2 py-0.5 rounded-full border shrink-0 transition-colors duration-300 ${status.color}`}>
+                    {status.label}
+                  </span>
+                </div>
+
+                <div className="my-3 pl-1">
+                  {formatValue(rawVal, unit)}
+                </div>
+
+                <div className="pt-3 border-t border-white/[0.06] flex items-center justify-between text-xs text-zinc-400 font-body">
+                  <span>Target Range</span>
+                  <span className="font-data text-zinc-200 font-semibold text-xs">
+                    {isCold ? (
+                      `${settings?.coldTempMin ?? 0.0}°C – ${settings?.coldTempMax ?? 8.0}°C`
+                    ) : isHot ? (
+                      `${settings?.hotTempMin ?? 50.0}°C – ${settings?.hotTempMax ?? 70.0}°C`
+                    ) : isHum ? (
+                      `${settings?.humidityMin ?? 20.0}% – ${settings?.humidityMax ?? 85.0}%`
+                    ) : (
+                      `Field ${m.fieldNumber}`
+                    )}
+                  </span>
+                </div>
               </div>
-              <span className="text-xs font-bold uppercase tracking-wider text-zinc-300 font-display truncate">
-                Cold Compartment
+            );
+          })}
+        </div>
+      ) : (
+        /* Legacy 3 Compartment Cards Grid */
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3.5 sm:gap-4">
+          {/* Cold Compartment Card */}
+          <div className={`bg-[#0e1014] border rounded-xl p-4 sm:p-5 transition-all duration-300 relative overflow-hidden group shadow-lg shadow-black/40 ${
+            isFreshReading
+              ? 'border-[#00a3ff]/60 shadow-[#00a3ff]/10'
+              : 'border-white/[0.08] hover:border-[#00a3ff]/40'
+          }`}>
+            <div className="absolute top-0 left-0 w-1.5 h-full bg-[#00a3ff]" />
+            <div className="flex items-center justify-between gap-2 mb-3">
+              <div className="flex items-center gap-2.5 min-w-0">
+                <div className="w-8 h-8 rounded-lg bg-[#00a3ff]/10 border border-[#00a3ff]/25 flex items-center justify-center text-[#00a3ff] shrink-0 group-hover:scale-105 transition-transform">
+                  <ThermometerSnowflake className="w-4 h-4" />
+                </div>
+                <span className="text-xs font-bold uppercase tracking-wider text-zinc-300 font-display truncate">
+                  Cold Compartment
+                </span>
+              </div>
+              <span
+                className={`text-[9px] sm:text-[10px] uppercase font-bold px-2 py-0.5 rounded-full border shrink-0 transition-colors duration-300 ${coldStatus.color}`}
+              >
+                {coldStatus.label}
               </span>
             </div>
-            <span
-              className={`text-[9px] sm:text-[10px] uppercase font-bold px-2 py-0.5 rounded-full border shrink-0 transition-colors duration-300 ${coldStatus.color}`}
-            >
-              {coldStatus.label}
-            </span>
-          </div>
 
-          <div className="my-3 pl-1">
-            {formatValue(animCold, '°C')}
-          </div>
+            <div className="my-3 pl-1">
+              {formatValue(animCold, '°C')}
+            </div>
 
-          <div className="pt-3 border-t border-white/[0.06] flex items-center justify-between text-xs text-zinc-400 font-body">
-            <span>Target Range</span>
-            <span className="font-data text-zinc-200 font-semibold text-xs">
-              {settings?.coldTempMin ?? 0.0}°C – {settings?.coldTempMax ?? 8.0}°C
-            </span>
-          </div>
-        </div>
-
-        {/* Hot Compartment Card */}
-        <div className={`bg-[#0e1014] border rounded-xl p-4 sm:p-5 transition-all duration-300 relative overflow-hidden group shadow-lg shadow-black/40 ${
-          isFreshReading
-            ? 'border-[#ff6b00]/60 shadow-[#ff6b00]/10'
-            : 'border-white/[0.08] hover:border-orange-500/40'
-        }`}>
-          <div className="absolute top-0 left-0 w-1.5 h-full bg-[#ff6b00]" />
-          <div className="flex items-center justify-between gap-2 mb-3">
-            <div className="flex items-center gap-2.5 min-w-0">
-              <div className="w-8 h-8 rounded-lg bg-orange-500/10 border border-orange-500/25 flex items-center justify-center text-[#ff6b00] shrink-0 group-hover:scale-105 transition-transform">
-                <Flame className="w-4 h-4" />
-              </div>
-              <span className="text-xs font-bold uppercase tracking-wider text-zinc-300 font-display truncate">
-                Hot Compartment
+            <div className="pt-3 border-t border-white/[0.06] flex items-center justify-between text-xs text-zinc-400 font-body">
+              <span>Target Range</span>
+              <span className="font-data text-zinc-200 font-semibold text-xs">
+                {settings?.coldTempMin ?? 0.0}°C – {settings?.coldTempMax ?? 8.0}°C
               </span>
             </div>
-            <span
-              className={`text-[9px] sm:text-[10px] uppercase font-bold px-2 py-0.5 rounded-full border shrink-0 transition-colors duration-300 ${hotStatus.color}`}
-            >
-              {hotStatus.label}
-            </span>
           </div>
 
-          <div className="my-3 pl-1">
-            {formatValue(animHot, '°C')}
-          </div>
-
-          <div className="pt-3 border-t border-white/[0.06] flex items-center justify-between text-xs text-zinc-400 font-body">
-            <span>Target Range</span>
-            <span className="font-data text-zinc-200 font-semibold text-xs">
-              {settings?.hotTempMin ?? 50.0}°C – {settings?.hotTempMax ?? 70.0}°C
-            </span>
-          </div>
-        </div>
-
-        {/* Relative Humidity Card */}
-        <div className={`bg-[#0e1014] border rounded-xl p-4 sm:p-5 transition-all duration-300 relative overflow-hidden group shadow-lg shadow-black/40 sm:col-span-2 lg:col-span-1 ${
-          isFreshReading
-            ? 'border-sky-500/60 shadow-sky-500/10'
-            : 'border-white/[0.08] hover:border-sky-500/40'
-        }`}>
-          <div className="absolute top-0 left-0 w-1.5 h-full bg-sky-500" />
-          <div className="flex items-center justify-between gap-2 mb-3">
-            <div className="flex items-center gap-2.5 min-w-0">
-              <div className="w-8 h-8 rounded-lg bg-sky-500/10 border border-sky-500/25 flex items-center justify-center text-sky-400 shrink-0 group-hover:scale-105 transition-transform">
-                <Droplets className="w-4 h-4" />
+          {/* Hot Compartment Card */}
+          <div className={`bg-[#0e1014] border rounded-xl p-4 sm:p-5 transition-all duration-300 relative overflow-hidden group shadow-lg shadow-black/40 ${
+            isFreshReading
+              ? 'border-[#ff6b00]/60 shadow-[#ff6b00]/10'
+              : 'border-white/[0.08] hover:border-orange-500/40'
+          }`}>
+            <div className="absolute top-0 left-0 w-1.5 h-full bg-[#ff6b00]" />
+            <div className="flex items-center justify-between gap-2 mb-3">
+              <div className="flex items-center gap-2.5 min-w-0">
+                <div className="w-8 h-8 rounded-lg bg-orange-500/10 border border-orange-500/25 flex items-center justify-center text-[#ff6b00] shrink-0 group-hover:scale-105 transition-transform">
+                  <Flame className="w-4 h-4" />
+                </div>
+                <span className="text-xs font-bold uppercase tracking-wider text-zinc-300 font-display truncate">
+                  Hot Compartment
+                </span>
               </div>
-              <span className="text-xs font-bold uppercase tracking-wider text-zinc-300 font-display truncate">
-                Relative Humidity
+              <span
+                className={`text-[9px] sm:text-[10px] uppercase font-bold px-2 py-0.5 rounded-full border shrink-0 transition-colors duration-300 ${hotStatus.color}`}
+              >
+                {hotStatus.label}
               </span>
             </div>
-            <span
-              className={`text-[9px] sm:text-[10px] uppercase font-bold px-2 py-0.5 rounded-full border shrink-0 transition-colors duration-300 ${humidityStatus.color}`}
-            >
-              {humidityStatus.label}
-            </span>
+
+            <div className="my-3 pl-1">
+              {formatValue(animHot, '°C')}
+            </div>
+
+            <div className="pt-3 border-t border-white/[0.06] flex items-center justify-between text-xs text-zinc-400 font-body">
+              <span>Target Range</span>
+              <span className="font-data text-zinc-200 font-semibold text-xs">
+                {settings?.hotTempMin ?? 50.0}°C – {settings?.hotTempMax ?? 70.0}°C
+              </span>
+            </div>
           </div>
 
-          <div className="my-3 pl-1">
-            {formatValue(animHumidity, '%')}
-          </div>
+          {/* Relative Humidity Card */}
+          <div className={`bg-[#0e1014] border rounded-xl p-4 sm:p-5 transition-all duration-300 relative overflow-hidden group shadow-lg shadow-black/40 sm:col-span-2 lg:col-span-1 ${
+            isFreshReading
+              ? 'border-sky-500/60 shadow-sky-500/10'
+              : 'border-white/[0.08] hover:border-sky-500/40'
+          }`}>
+            <div className="absolute top-0 left-0 w-1.5 h-full bg-sky-500" />
+            <div className="flex items-center justify-between gap-2 mb-3">
+              <div className="flex items-center gap-2.5 min-w-0">
+                <div className="w-8 h-8 rounded-lg bg-sky-500/10 border border-sky-500/25 flex items-center justify-center text-sky-400 shrink-0 group-hover:scale-105 transition-transform">
+                  <Droplets className="w-4 h-4" />
+                </div>
+                <span className="text-xs font-bold uppercase tracking-wider text-zinc-300 font-display truncate">
+                  Relative Humidity
+                </span>
+              </div>
+              <span
+                className={`text-[9px] sm:text-[10px] uppercase font-bold px-2 py-0.5 rounded-full border shrink-0 transition-colors duration-300 ${humidityStatus.color}`}
+              >
+                {humidityStatus.label}
+              </span>
+            </div>
 
-          <div className="pt-3 border-t border-white/[0.06] flex items-center justify-between text-xs text-zinc-400 font-body">
-            <span>Target Range</span>
-            <span className="font-data text-zinc-200 font-semibold text-xs">
-              {settings?.humidityMin ?? 20.0}% – {settings?.humidityMax ?? 85.0}%
-            </span>
+            <div className="my-3 pl-1">
+              {formatValue(animHumidity, '%')}
+            </div>
+
+            <div className="pt-3 border-t border-white/[0.06] flex items-center justify-between text-xs text-zinc-400 font-body">
+              <span>Target Range</span>
+              <span className="font-data text-zinc-200 font-semibold text-xs">
+                {settings?.humidityMin ?? 20.0}% – {settings?.humidityMax ?? 85.0}%
+              </span>
+            </div>
           </div>
         </div>
-      </div>
+      )}
     </div>
   );
 };

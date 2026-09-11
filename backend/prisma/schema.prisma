@@ -62,6 +62,7 @@ model Device {
   name                String
   thingSpeakChannelId String
   thingSpeakReadKey   String?
+  fieldMappings       Json?
   status              DeviceStatus @default(OFFLINE)
   lastSeenAt          DateTime?
   createdAt           DateTime     @default(now())
@@ -86,6 +87,7 @@ model SensorReading {
   hotTemperature    Float?
   coldTemperature   Float?
   humidity          Float?
+  fieldValues       Json?
   createdAt         DateTime @default(now())
 
   device Device @relation(fields: [deviceId], references: [id], onDelete: Cascade)

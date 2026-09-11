@@ -144,12 +144,14 @@ export class AnalyticsService {
         coldTemperature: true,
         hotTemperature: true,
         humidity: true,
+        fieldValues: true,
       },
     });
 
     return {
       deviceId: device.id,
       deviceCode: device.deviceCode,
+      fieldMappings: (device as any).fieldMappings || null,
       count: readings.length,
       readings,
     };

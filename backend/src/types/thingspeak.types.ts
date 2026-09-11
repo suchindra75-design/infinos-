@@ -39,9 +39,10 @@ export interface NormalizedSensorReading {
   entryId: number;
   channelId: string | number;
   recordedAt: string;
-  coldTemperature: number | null; // Field 1
-  hotTemperature: number | null;  // Field 3
-  humidity: number | null;        // Field 4
+  coldTemperature: number | null; // Legacy Field 1
+  hotTemperature: number | null;  // Legacy Field 3
+  humidity: number | null;        // Legacy Field 4
+  fieldValues?: Record<string, number | null>; // Dynamic raw field values map ("field1", "field2", etc.)
 }
 
 export interface ThingSpeakConnectionResult {
@@ -50,6 +51,7 @@ export interface ThingSpeakConnectionResult {
   channelId: string;
   channelName?: string;
   message: string;
+  discoveredFields?: import('./mapping.types.js').DeviceFieldMapping[];
 }
 
 export interface GetFeedsOptions {

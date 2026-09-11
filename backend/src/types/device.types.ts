@@ -5,6 +5,7 @@ export interface SafeDevice {
   deviceCode: string;
   name: string;
   thingSpeakChannelId: string;
+  fieldMappings?: import('./mapping.types.js').DeviceFieldMapping[] | null;
   status: DeviceStatus;
   lastSeenAt: Date | null;
   createdAt: Date;

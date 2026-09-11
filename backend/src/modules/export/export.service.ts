@@ -78,6 +78,7 @@ export class ExportService {
 
   /**
    * Generates CSV export for a device's sensor readings.
+   * Dynamically generates columns based on device fieldMappings when available.
    */
   async exportCsv(
     deviceId: string,
@@ -85,6 +86,13 @@ export class ExportService {
     user: SafeUser
   ): Promise<{ csv: string; filename: string }> {
     const device = await this.getAuthorizedDevice(deviceId, user);
+
+    // Fetch device fieldMappings for dynamic column headers
+    const fullDevice = await prisma.device.findUnique({
+      where: { id: device.id },
+      select: { fieldMappings: true },
+    });
+    const mappings: any[] = Array.isArray(fullDevice?.fieldMappings) ? (fullDevice.fieldMappings as any[]) : [];
 
     const where: Prisma.SensorReadingWhereInput = { deviceId: device.id };
     if (query.from || query.to) {
@@ -103,12 +111,41 @@ export class ExportService {
         coldTemperature: true,
         hotTemperature: true,
         humidity: true,
+        fieldValues: true,
       },
     });
 
     const filename = this.generateFilename(device.deviceCode, 'csv');
 
-    // Headers with device context and sensor parameters (strictly NO credentials)
+    if (mappings.length > 0) {
+      // Dynamic CSV headers from device fieldMappings
+      const fieldHeaders = mappings.map((m: any) => {
+        const unit = m.unit ? ` (${m.unit})` : '';
+        return `${m.label}${unit}`;
+      });
+      const headerRow = ['recordedAt', 'deviceCode', 'deviceName', ...fieldHeaders].join(',');
+      const rows: string[] = [headerRow];
+
+      for (const r of readings) {
+        const fv = (r.fieldValues && typeof r.fieldValues === 'object') ? (r.fieldValues as Record<string, any>) : {};
+        const fieldValues = mappings.map((m: any) => {
+          const val = fv[m.fieldKey] ?? null;
+          return this.escapeCsvValue(val);
+        });
+        const row = [
+          this.escapeCsvValue(r.recordedAt.toISOString()),
+          this.escapeCsvValue(device.deviceCode),
+          this.escapeCsvValue(device.name),
+          ...fieldValues,
+        ].join(',');
+        rows.push(row);
+      }
+
+      const csvContent = rows.join('\r\n') + '\r\n';
+      return { csv: csvContent, filename };
+    }
+
+    // Legacy fallback: fixed 3-column format
     const headerRow = 'recordedAt,deviceCode,deviceName,coldTemperature,hotTemperature,humidity';
     const rows: string[] = [headerRow];
 
@@ -137,6 +174,13 @@ export class ExportService {
     user: SafeUser
   ): Promise<{ pdfBuffer: Buffer; filename: string }> {
     const device = await this.getAuthorizedDevice(deviceId, user);
+
+    // Fetch device fieldMappings for dynamic PDF columns
+    const fullDevice = await prisma.device.findUnique({
+      where: { id: device.id },
+      select: { fieldMappings: true },
+    });
+    const mappings: any[] = Array.isArray(fullDevice?.fieldMappings) ? (fullDevice.fieldMappings as any[]) : [];
 
     const where: Prisma.SensorReadingWhereInput = { deviceId: device.id };
     if (query.from || query.to) {
@@ -202,6 +246,7 @@ export class ExportService {
           coldTemperature: true,
           hotTemperature: true,
           humidity: true,
+          fieldValues: true,
         },
       }),
     ]);
@@ -442,12 +487,21 @@ export class ExportService {
     );
     pdf.setY(pdf.getY() - 14);
 
-    const readingCols: PdfTableColumn[] = [
-      { header: 'Timestamp (UTC)', width: 160 },
-      { header: 'Cold Temp (C)', width: 120, align: 'right' },
-      { header: 'Hot Temp (C)', width: 120, align: 'right' },
-      { header: 'Humidity (%)', width: 132, align: 'right' },
-    ];
+    // Build dynamic reading columns from fieldMappings, or use legacy 3-column layout
+    const readingCols: PdfTableColumn[] = [{ header: 'Timestamp (UTC)', width: 160 }];
+    if (mappings.length > 0) {
+      const fieldColWidth = Math.min(Math.floor(372 / mappings.length), 130);
+      for (const m of mappings) {
+        const unit = m.unit ? ` (${m.unit})` : '';
+        readingCols.push({ header: `${m.label}${unit}`, width: fieldColWidth, align: 'right' });
+      }
+    } else {
+      readingCols.push(
+        { header: 'Cold Temp (C)', width: 120, align: 'right' },
+        { header: 'Hot Temp (C)', width: 120, align: 'right' },
+        { header: 'Humidity (%)', width: 132, align: 'right' }
+      );
+    }
 
     if (tableReadings.length === 0) {
       pdf.drawBorderedRect(40, pdf.getY() - 15, 532, 24, 0.88, 0.88, 0.88, 1, [0.98, 0.98, 0.98]);
@@ -481,12 +535,25 @@ export class ExportService {
         }
 
         const r = tableReadings[i];
-        const rowVals = [
-          r.recordedAt.toISOString().replace('T', ' ').substring(0, 19),
-          r.coldTemperature !== null ? `${r.coldTemperature.toFixed(1)} C` : '--',
-          r.hotTemperature !== null ? `${r.hotTemperature.toFixed(1)} C` : '--',
-          r.humidity !== null ? `${r.humidity.toFixed(1)} %` : '--',
-        ];
+        let rowVals: string[];
+
+        if (mappings.length > 0) {
+          const fv = (r.fieldValues && typeof r.fieldValues === 'object') ? (r.fieldValues as Record<string, any>) : {};
+          rowVals = [
+            r.recordedAt.toISOString().replace('T', ' ').substring(0, 19),
+            ...mappings.map((m: any) => {
+              const val = fv[m.fieldKey];
+              return val !== null && val !== undefined ? `${Number(val).toFixed(1)} ${m.unit || ''}`.trim() : '--';
+            }),
+          ];
+        } else {
+          rowVals = [
+            r.recordedAt.toISOString().replace('T', ' ').substring(0, 19),
+            r.coldTemperature !== null ? `${r.coldTemperature.toFixed(1)} C` : '--',
+            r.hotTemperature !== null ? `${r.hotTemperature.toFixed(1)} C` : '--',
+            r.humidity !== null ? `${r.humidity.toFixed(1)} %` : '--',
+          ];
+        }
 
         const isEven = i % 2 === 0;
         pdf.drawTableRow(readingCols, rowVals, pdf.getY() - 13, 15, {

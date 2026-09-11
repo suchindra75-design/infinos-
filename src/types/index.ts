@@ -12,11 +12,25 @@ export interface SafeUser {
 
 export type DeviceStatus = 'ONLINE' | 'STALE' | 'OFFLINE';
 
+export type MetricType = 'temperature' | 'humidity' | 'other';
+export type ZoneType = 'cold' | 'hot' | 'ambient' | 'none';
+
+export interface DeviceFieldMapping {
+  fieldNumber: number; // 1 to 8
+  fieldKey: string;    // "field1", "field2", etc.
+  label: string;       // e.g. "Cold Fold 1", "Humidity Rear"
+  metric: MetricType;  // "temperature" | "humidity" | "other"
+  zone?: ZoneType;     // "cold" | "hot" | "ambient" | "none"
+  fold?: string;       // e.g. "1", "2", "3"
+  unit: string;        // "°C", "°F", "%"
+}
+
 export interface SafeDevice {
   id: string;
   deviceCode: string;
   name: string;
   thingSpeakChannelId: string;
+  fieldMappings?: DeviceFieldMapping[] | null;
   status: DeviceStatus;
   lastSeenAt: string | null;
   createdAt: string;
@@ -42,6 +56,7 @@ export interface SensorReading {
   coldTemperature: number | null;
   hotTemperature: number | null;
   humidity: number | null;
+  fieldValues?: Record<string, number | null>;
 }
 
 export interface MetricSummary {
@@ -68,6 +83,7 @@ export interface AnalyticsSummary {
 export interface AnalyticsTimeseries {
   deviceId: string;
   deviceCode: string;
+  fieldMappings?: DeviceFieldMapping[] | null;
   count: number;
   readings: SensorReading[];
 }
@@ -135,6 +151,7 @@ export interface CreateDeviceInput {
   name: string;
   thingSpeakChannelId: string;
   thingSpeakReadApiKey?: string;
+  fieldMappings?: DeviceFieldMapping[];
 }
 
 export interface ConnectionTestResult {
@@ -142,6 +159,7 @@ export interface ConnectionTestResult {
   channelId: string;
   channelName?: string;
   message: string;
+  discoveredFields?: DeviceFieldMapping[];
 }
 
 export interface ApiResponse<T = any> {

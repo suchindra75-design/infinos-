@@ -10,6 +10,7 @@ export interface AlertEvaluationReading {
   coldTemperature: number | null;
   hotTemperature: number | null;
   humidity: number | null;
+  fieldValues?: Record<string, number | null>;
   recordedAt: Date;
 }
 

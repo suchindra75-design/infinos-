@@ -27,6 +27,7 @@ export class DeviceService {
     name: string;
     thingSpeakChannelId: string;
     thingSpeakReadKey: string | null;
+    fieldMappings?: any;
     status: any;
     lastSeenAt: Date | null;
     createdAt: Date;
@@ -38,6 +39,7 @@ export class DeviceService {
       deviceCode: device.deviceCode,
       name: device.name,
       thingSpeakChannelId: device.thingSpeakChannelId,
+      fieldMappings: (device.fieldMappings as any) || null,
       status: device.status,
       lastSeenAt: device.lastSeenAt,
       createdAt: device.createdAt,
@@ -96,6 +98,7 @@ export class DeviceService {
         name: input.name.trim(),
         thingSpeakChannelId: channelId,
         thingSpeakReadKey: encryptedKey,
+        fieldMappings: input.fieldMappings || null,
         ownerId,
         settings: {
           create: {}, // Provision default thresholds defined in schema
@@ -144,10 +147,15 @@ export class DeviceService {
       deviceCode?: string;
       thingSpeakChannelId?: string;
       thingSpeakReadKey?: string;
+      fieldMappings?: any;
     } = {};
 
     if (input.name !== undefined) {
       updateData.name = input.name.trim();
+    }
+
+    if (input.fieldMappings !== undefined) {
+      updateData.fieldMappings = input.fieldMappings;
     }
 
     if (input.deviceCode !== undefined) {

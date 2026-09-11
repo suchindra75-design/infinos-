@@ -76,14 +76,38 @@ export class DeviceSyncService {
             }
           }
 
+          const fValues = r.fieldValues || {};
+
+          // Dynamic field mapping lookup for legacy column fallback
+          let coldTemp = r.coldTemperature;
+          let hotTemp = r.hotTemperature;
+          let hum = r.humidity;
+
+          const mappings = Array.isArray(device.fieldMappings) ? device.fieldMappings : null;
+          if (mappings && mappings.length > 0) {
+            const coldMapping = mappings.find((m: any) => m.metric === 'temperature' && m.zone === 'cold');
+            if (coldMapping && coldMapping.fieldKey) {
+              coldTemp = fValues[coldMapping.fieldKey] ?? null;
+            }
+            const hotMapping = mappings.find((m: any) => m.metric === 'temperature' && m.zone === 'hot');
+            if (hotMapping && hotMapping.fieldKey) {
+              hotTemp = fValues[hotMapping.fieldKey] ?? null;
+            }
+            const humMapping = mappings.find((m: any) => m.metric === 'humidity');
+            if (humMapping && humMapping.fieldKey) {
+              hum = fValues[humMapping.fieldKey] ?? null;
+            }
+          }
+
           return {
             id: crypto.randomUUID(),
             deviceId: device.id,
             thingSpeakEntryId: r.entryId,
             recordedAt: recDate,
-            coldTemperature: r.coldTemperature, // Field 1 -> Cold
-            hotTemperature: r.hotTemperature,   // Field 3 -> Hot
-            humidity: r.humidity,               // Field 4 -> Humidity
+            coldTemperature: coldTemp,
+            hotTemperature: hotTemp,
+            humidity: hum,
+            fieldValues: fValues,
           };
         });
 
@@ -103,6 +127,7 @@ export class DeviceSyncService {
                 coldTemperature: r.coldTemperature,
                 hotTemperature: r.hotTemperature,
                 humidity: r.humidity,
+                fieldValues: r.fieldValues,
                 recordedAt: r.recordedAt,
               }))
             );

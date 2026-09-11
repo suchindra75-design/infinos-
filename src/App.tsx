@@ -471,6 +471,8 @@ const DashboardContent: React.FC = () => {
                       settings={settings}
                       isLoading={isTelemetryLoading}
                       error={telemetryError}
+                      fieldMappings={selectedDevice.fieldMappings}
+                      latestReading={timeseries.length > 0 ? timeseries[timeseries.length - 1] : null}
                     />
 
                     {/* 3. Operational Alerts & Incidents */}
@@ -490,6 +492,7 @@ const DashboardContent: React.FC = () => {
                       timeRange={timeRange}
                       onChangeTimeRange={setTimeRange}
                       error={timeseriesError}
+                      fieldMappings={selectedDevice.fieldMappings}
                     />
 
                     {/* 5. PostgreSQL Telemetry Analytics Summary */}

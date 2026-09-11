@@ -22,6 +22,7 @@ export const createDeviceSchema = z.object({
     .max(100, 'API key must not exceed 100 characters')
     .optional()
     .or(z.literal('')),
+  fieldMappings: z.array(z.any()).optional(),
 });
 
 export const updateDeviceSchema = z.object({
@@ -49,6 +50,7 @@ export const updateDeviceSchema = z.object({
     .max(100, 'API key must not exceed 100 characters')
     .optional()
     .or(z.literal('')),
+  fieldMappings: z.array(z.any()).optional(),
 });
 
 export const testConnectionSchema = z.object({
