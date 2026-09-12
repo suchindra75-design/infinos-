@@ -57,7 +57,7 @@ export const TelemetryChart: React.FC<TelemetryChartProps> = ({
   const chartWidth = width - padding.left - padding.right;
   const chartHeight = height - padding.top - padding.bottom;
 
-  // Build series definitions based on fieldMappings or fallback to legacy 3 metrics
+  // Build series definitions based on fieldMappings or discovered fieldValues in readings
   const seriesDefs: SeriesDef[] = useMemo(() => {
     if (fieldMappings && fieldMappings.length > 0) {
       return fieldMappings.map((m, idx) => {
@@ -77,12 +77,47 @@ export const TelemetryChart: React.FC<TelemetryChartProps> = ({
           gradientId: `gradient_${m.fieldKey}`,
           getValue: (r: SensorReading) => {
             if (r.fieldValues && r.fieldValues[m.fieldKey] !== undefined && r.fieldValues[m.fieldKey] !== null) {
-              return r.fieldValues[m.fieldKey];
+              const val = r.fieldValues[m.fieldKey];
+              return typeof val === 'number' && Number.isFinite(val) ? val : null;
             }
             if (m.zone === 'cold') return r.coldTemperature;
             if (m.zone === 'hot') return r.hotTemperature;
             if (m.metric === 'humidity') return r.humidity;
             return null;
+          },
+        };
+      });
+    }
+
+    // Auto-discover active numeric field keys from readings.fieldValues
+    const activeFieldKeys = new Set<string>();
+    readings.forEach((r) => {
+      if (r.fieldValues && typeof r.fieldValues === 'object') {
+        Object.keys(r.fieldValues).forEach((k) => {
+          if (k.startsWith('field')) {
+            const v = r.fieldValues![k];
+            if (v !== null && v !== undefined && typeof v === 'number' && Number.isFinite(v)) {
+              activeFieldKeys.add(k);
+            }
+          }
+        });
+      }
+    });
+
+    if (activeFieldKeys.size > 0) {
+      const sortedKeys = Array.from(activeFieldKeys).sort();
+      return sortedKeys.map((key, idx) => {
+        const num = Number(key.replace('field', '')) || 1;
+        const color = COLOR_PALETTE[idx % COLOR_PALETTE.length];
+        return {
+          key,
+          label: `Field ${num}`,
+          unit: '',
+          color,
+          gradientId: `gradient_${key}`,
+          getValue: (r: SensorReading) => {
+            const val = r.fieldValues?.[key];
+            return typeof val === 'number' && Number.isFinite(val) ? val : null;
           },
         };
       });
@@ -114,7 +149,7 @@ export const TelemetryChart: React.FC<TelemetryChartProps> = ({
         getValue: (r: SensorReading) => r.humidity,
       },
     ];
-  }, [fieldMappings]);
+  }, [fieldMappings, readings]);
 
   // Reset active channel filter if current selection is invalid
   const validActiveChannel = useMemo(() => {

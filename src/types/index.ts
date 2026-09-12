@@ -66,6 +66,19 @@ export interface MetricSummary {
   humidity: number | null;
 }
 
+export interface FieldSummary {
+  fieldNumber: number;
+  fieldKey: string;
+  label: string;
+  metric: MetricType;
+  zone?: ZoneType;
+  unit: string;
+  latest: number | null;
+  minimum: number | null;
+  maximum: number | null;
+  average: number | null;
+}
+
 export interface AnalyticsSummary {
   deviceId: string;
   deviceCode: string;
@@ -77,6 +90,7 @@ export interface AnalyticsSummary {
   latestReadingTimestamp: string | null;
   latest: MetricSummary;
   latestFieldValues?: Record<string, number | null> | null;
+  fieldSummaries?: Record<string, FieldSummary> | null;
   minimum: MetricSummary;
   maximum: MetricSummary;
   average: MetricSummary;

@@ -37,10 +37,13 @@ export class ThingSpeakService {
   }
 
   /**
-   * Dynamically discovers all configured fields from ThingSpeak channel metadata.
-   * Infers heuristic labels, metrics, zones, folds, and units.
+   * Dynamically discovers all configured fields from ThingSpeak channel metadata and sample feeds.
+   * Preserves exact ThingSpeak field labels without fabricating metric assumptions.
    */
-  public discoverChannelFields(channelMeta: ThingSpeakChannelMeta): import('../types/mapping.types.js').DeviceFieldMapping[] {
+  public discoverChannelFields(
+    channelMeta: ThingSpeakChannelMeta,
+    sampleFeed?: ThingSpeakRawFeed
+  ): import('../types/mapping.types.js').DeviceFieldMapping[] {
     if (!channelMeta) return [];
     const fields: import('../types/mapping.types.js').DeviceFieldMapping[] = [];
 
@@ -51,9 +54,9 @@ export class ThingSpeakService {
         const label = rawLabel.trim();
         const lower = label.toLowerCase();
 
-        let metric: 'temperature' | 'humidity' | 'other' = 'temperature';
+        let metric: 'temperature' | 'humidity' | 'other' = 'other';
         let zone: 'cold' | 'hot' | 'ambient' | 'none' = 'none';
-        let unit = '°C';
+        let unit = '';
         let fold: string | undefined = undefined;
 
         if (lower.includes('humid') || lower.includes('%')) {
@@ -68,15 +71,21 @@ export class ThingSpeakService {
           metric = 'temperature';
           zone = 'hot';
           unit = '°C';
-        } else if (lower.includes('temp')) {
+        } else if (lower.includes('temp') || lower.includes('°c') || lower.includes('degree')) {
           metric = 'temperature';
           unit = '°C';
+        } else if (lower.includes('volt') || lower.includes('battery') || lower.includes(' v')) {
+          metric = 'other';
+          unit = 'V';
+        } else if (lower.includes('press') || lower.includes('bar') || lower.includes('hpa')) {
+          metric = 'other';
+          unit = 'hPa';
         } else {
           metric = 'other';
           unit = '';
         }
 
-        // Try extracting fold number from label if present (e.g. "Fold 1", "#1", "Compartment 2")
+        // Extract fold/compartment number if present in label
         const foldMatch = lower.match(/(?:fold|compartment|zone|unit|#)\s*([0-9]+)/);
         if (foldMatch && foldMatch[1]) {
           fold = foldMatch[1];
@@ -94,12 +103,28 @@ export class ThingSpeakService {
       }
     }
 
-    // Fallback if channel metadata did not explicitly configure field labels (e.g., standard demo channel 3297681)
+    // Dynamic discovery from feed entries if metadata has no explicit field labels
+    if (fields.length === 0 && sampleFeed) {
+      for (let num = 1; num <= 8; num++) {
+        const feedKey = `field${num}` as keyof ThingSpeakRawFeed;
+        if (sampleFeed[feedKey] !== undefined && sampleFeed[feedKey] !== null && String(sampleFeed[feedKey]).trim() !== '') {
+          fields.push({
+            fieldNumber: num,
+            fieldKey: `field${num}`,
+            label: `Field ${num}`,
+            metric: 'other',
+            zone: 'none',
+            unit: '',
+          });
+        }
+      }
+    }
+
+    // Fallback default if channel metadata AND sample feed have no field labels
     if (fields.length === 0) {
       fields.push(
-        { fieldNumber: 1, fieldKey: 'field1', label: 'Cold Temperature', metric: 'temperature', zone: 'cold', fold: '1', unit: '°C' },
-        { fieldNumber: 3, fieldKey: 'field3', label: 'Hot Temperature', metric: 'temperature', zone: 'hot', fold: '1', unit: '°C' },
-        { fieldNumber: 4, fieldKey: 'field4', label: 'Humidity', metric: 'humidity', zone: 'ambient', unit: '%' }
+        { fieldNumber: 1, fieldKey: 'field1', label: 'Field 1', metric: 'other', zone: 'none', unit: '' },
+        { fieldNumber: 2, fieldKey: 'field2', label: 'Field 2', metric: 'other', zone: 'none', unit: '' }
       );
     }
 
@@ -405,11 +430,12 @@ export class ThingSpeakService {
     try {
       const data = await this.requestThingSpeak(
         `/channels/${encodeURIComponent(cleanChannelId)}/feeds.json`,
-        { results: 0 },
+        { results: 1 },
         readApiKey
       );
 
-      const discoveredFields = data?.channel ? this.discoverChannelFields(data.channel) : [];
+      const sampleFeed = Array.isArray(data?.feeds) && data.feeds.length > 0 ? data.feeds[0] : undefined;
+      const discoveredFields = data?.channel ? this.discoverChannelFields(data.channel, sampleFeed) : [];
 
       return {
         connected: true,

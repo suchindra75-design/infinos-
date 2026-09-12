@@ -175,7 +175,40 @@ export const LiveTelemetryCard: React.FC<LiveTelemetryProps> = ({
   const hotStatus = getHotStatus(latest?.hotTemperature);
   const humidityStatus = getHumidityStatus(latest?.humidity);
 
-  const hasDynamicMappings = fieldMappings && fieldMappings.length > 0;
+  const effectiveMappings: DeviceFieldMapping[] = React.useMemo(() => {
+    if (fieldMappings && fieldMappings.length > 0) {
+      return fieldMappings;
+    }
+    if (summary?.fieldSummaries && Object.keys(summary.fieldSummaries).length > 0) {
+      return Object.values(summary.fieldSummaries).map((s: any) => ({
+        fieldNumber: s.fieldNumber,
+        fieldKey: s.fieldKey,
+        label: s.label,
+        metric: s.metric,
+        zone: s.zone,
+        unit: s.unit,
+      }));
+    }
+    const fv = latestReading?.fieldValues || summary?.latestFieldValues;
+    if (fv && Object.keys(fv).length > 0) {
+      return Object.keys(fv)
+        .filter((k) => k.startsWith('field') && fv[k] !== null && fv[k] !== undefined)
+        .map((k) => {
+          const num = Number(k.replace('field', '')) || 1;
+          return {
+            fieldNumber: num,
+            fieldKey: k,
+            label: `Field ${num}`,
+            metric: 'other' as const,
+            zone: 'none' as const,
+            unit: '',
+          };
+        });
+    }
+    return [];
+  }, [fieldMappings, summary, latestReading]);
+
+  const hasDynamicMappings = effectiveMappings.length > 0;
 
   return (
     <div className="space-y-3">
@@ -211,7 +244,7 @@ export const LiveTelemetryCard: React.FC<LiveTelemetryProps> = ({
       {/* Dynamic or Legacy Compartment Cards Grid */}
       {hasDynamicMappings ? (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3.5 sm:gap-4">
-          {fieldMappings.map((m) => {
+          {effectiveMappings.map((m) => {
             const rawVal = latestReading?.fieldValues?.[m.fieldKey] ?? summary?.latestFieldValues?.[m.fieldKey] ?? (
               m.zone === 'cold' ? latest?.coldTemperature :
               m.zone === 'hot' ? latest?.hotTemperature :

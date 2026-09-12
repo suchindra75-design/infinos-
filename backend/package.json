@@ -12,7 +12,7 @@
     "prisma:migrate": "prisma migrate dev",
     "prisma:seed": "tsx prisma/seed.ts",
     "test": "tsx tests/health.test.ts && tsx tests/auth.test.ts && tsx tests/device.test.ts && tsx tests/thingspeak.test.ts && tsx tests/sync.test.ts && tsx tests/alerts-analytics.test.ts && tsx tests/export.test.ts",
-    "test:unit": "tsx tests/part6-unit.test.ts && tsx tests/export.test.ts && tsx tests/test-guard.test.ts"
+    "test:unit": "tsx tests/part6-unit.test.ts && tsx tests/export.test.ts && tsx tests/test-guard.test.ts && tsx tests/field-agnostic.test.ts"
   },
   "prisma": {
     "seed": "tsx prisma/seed.ts"

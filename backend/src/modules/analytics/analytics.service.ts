@@ -41,7 +41,7 @@ export class AnalyticsService {
     }
 
     // Aggregates using database indexes without unbounded in-memory loading
-    const [aggregations, latestReading, activeAlertsCount] = await Promise.all([
+    const [aggregations, latestReading, activeAlertsCount, readingsForStats] = await Promise.all([
       prisma.sensorReading.aggregate({
         where,
         _count: { id: true },
@@ -70,7 +70,72 @@ export class AnalyticsService {
       prisma.alert.count({
         where: { deviceId, isResolved: false },
       }),
+      prisma.sensorReading.findMany({
+        where,
+        select: { fieldValues: true },
+        take: 2000,
+      }),
     ]);
+
+    const mappings: any[] = Array.isArray((device as any).fieldMappings) ? (device as any).fieldMappings : [];
+    const fieldSummaries: Record<string, any> = {};
+
+    const allFieldKeys = new Set<string>();
+    for (const m of mappings) {
+      if (m.fieldKey) allFieldKeys.add(m.fieldKey);
+    }
+    for (const r of readingsForStats) {
+      const fv = (r.fieldValues && typeof r.fieldValues === 'object') ? (r.fieldValues as Record<string, any>) : {};
+      for (const k of Object.keys(fv)) {
+        if (k.startsWith('field') && fv[k] !== null && fv[k] !== undefined) {
+          allFieldKeys.add(k);
+        }
+      }
+    }
+
+    const latestFv = (latestReading?.fieldValues && typeof latestReading.fieldValues === 'object')
+      ? (latestReading.fieldValues as Record<string, any>)
+      : {};
+
+    for (const fieldKey of Array.from(allFieldKeys)) {
+      const mapping = mappings.find((m) => m.fieldKey === fieldKey);
+      const label = mapping?.label || `Field ${fieldKey.replace('field', '')}`;
+      const metric = mapping?.metric || 'other';
+      const zone = mapping?.zone || 'none';
+      const unit = mapping?.unit || '';
+      const fieldNumber = mapping?.fieldNumber || Number(fieldKey.replace('field', '')) || 1;
+
+      let min: number | null = null;
+      let max: number | null = null;
+      let sum = 0;
+      let count = 0;
+
+      for (const r of readingsForStats) {
+        const fv = (r.fieldValues && typeof r.fieldValues === 'object') ? (r.fieldValues as Record<string, any>) : {};
+        const rawVal = fv[fieldKey];
+        if (rawVal !== null && rawVal !== undefined && typeof rawVal === 'number' && Number.isFinite(rawVal)) {
+          min = min === null ? rawVal : Math.min(min, rawVal);
+          max = max === null ? rawVal : Math.max(max, rawVal);
+          sum += rawVal;
+          count++;
+        }
+      }
+
+      const latestVal = latestFv[fieldKey] !== undefined && typeof latestFv[fieldKey] === 'number' ? latestFv[fieldKey] : null;
+
+      fieldSummaries[fieldKey] = {
+        fieldNumber,
+        fieldKey,
+        label,
+        metric,
+        zone,
+        unit,
+        latest: latestVal,
+        minimum: this.round(min),
+        maximum: this.round(max),
+        average: count > 0 ? this.round(sum / count) : null,
+      };
+    }
 
     return {
       deviceId: device.id,
@@ -87,6 +152,7 @@ export class AnalyticsService {
         humidity: latestReading?.humidity ?? null,
       },
       latestFieldValues: (latestReading?.fieldValues as Record<string, number | null>) || null,
+      fieldSummaries,
       minimum: {
         coldTemperature: aggregations._min.coldTemperature ?? null,
         hotTemperature: aggregations._min.hotTemperature ?? null,

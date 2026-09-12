@@ -219,6 +219,7 @@ export class ExportService {
           coldTemperature: true,
           hotTemperature: true,
           humidity: true,
+          fieldValues: true,
           recordedAt: true,
         },
       }),
@@ -321,96 +322,165 @@ export class ExportService {
       b: 0.25,
     });
 
-    // KPI Box 1: Cold Compartment
-    const boxW = 170;
-    const boxH = 68;
-    const startY = 545;
+    if (mappings.length > 0) {
+      // Dynamic KPI Cards for all configured fields
+      const latestFv = (latestReading?.fieldValues && typeof latestReading.fieldValues === 'object')
+        ? (latestReading.fieldValues as Record<string, any>)
+        : {};
 
-    // Cold Temp Card
-    pdf.drawBorderedRect(40, startY, boxW, boxH, 0.75, 0.85, 0.95, 1, [0.93, 0.97, 1.0]);
-    pdf.drawText('Cold Compartment (C)', 50, startY + 52, {
-      font: 'F2',
-      fontSize: 9,
-      r: 0.05,
-      g: 0.35,
-      b: 0.75,
-    });
-    pdf.drawText(
-      `Latest: ${latestReading?.coldTemperature !== null && latestReading?.coldTemperature !== undefined ? `${latestReading.coldTemperature} C` : 'N/A'}`,
-      50,
-      startY + 38,
-      { font: 'F2', fontSize: 9, r: 0.1, g: 0.1, b: 0.1 }
-    );
-    pdf.drawText(
-      `Min: ${this.round(aggregations._min.coldTemperature) ?? 'N/A'} C | Max: ${this.round(aggregations._max.coldTemperature) ?? 'N/A'} C`,
-      50,
-      startY + 24,
-      { font: 'F1', fontSize: 8, r: 0.3, g: 0.3, b: 0.3 }
-    );
-    pdf.drawText(
-      `Average: ${this.round(aggregations._avg.coldTemperature) ?? 'N/A'} C`,
-      50,
-      startY + 10,
-      { font: 'F1', fontSize: 8, r: 0.3, g: 0.3, b: 0.3 }
-    );
+      const colsCount = Math.min(mappings.length, 3);
+      const boxW = Math.floor((532 - (colsCount - 1) * 11) / colsCount);
+      const boxH = 58;
+      const startY = 550;
 
-    // Hot Temp Card
-    pdf.drawBorderedRect(221, startY, boxW, boxH, 0.95, 0.82, 0.78, 1, [1.0, 0.96, 0.95]);
-    pdf.drawText('Hot Compartment (C)', 231, startY + 52, {
-      font: 'F2',
-      fontSize: 9,
-      r: 0.85,
-      g: 0.25,
-      b: 0.15,
-    });
-    pdf.drawText(
-      `Latest: ${latestReading?.hotTemperature !== null && latestReading?.hotTemperature !== undefined ? `${latestReading.hotTemperature} C` : 'N/A'}`,
-      231,
-      startY + 38,
-      { font: 'F2', fontSize: 9, r: 0.1, g: 0.1, b: 0.1 }
-    );
-    pdf.drawText(
-      `Min: ${this.round(aggregations._min.hotTemperature) ?? 'N/A'} C | Max: ${this.round(aggregations._max.hotTemperature) ?? 'N/A'} C`,
-      231,
-      startY + 24,
-      { font: 'F1', fontSize: 8, r: 0.3, g: 0.3, b: 0.3 }
-    );
-    pdf.drawText(
-      `Average: ${this.round(aggregations._avg.hotTemperature) ?? 'N/A'} C`,
-      231,
-      startY + 10,
-      { font: 'F1', fontSize: 8, r: 0.3, g: 0.3, b: 0.3 }
-    );
+      mappings.slice(0, 6).forEach((m: any, idx: number) => {
+        const rowIdx = Math.floor(idx / 3);
+        const colIdx = idx % 3;
+        const xPos = 40 + colIdx * (boxW + 11);
+        const yPos = startY - rowIdx * (boxH + 10);
 
-    // Humidity Card
-    pdf.drawBorderedRect(402, startY, boxW, boxH, 0.8, 0.9, 0.8, 1, [0.94, 0.98, 0.94]);
-    pdf.drawText('Relative Humidity (%)', 412, startY + 52, {
-      font: 'F2',
-      fontSize: 9,
-      r: 0.15,
-      g: 0.55,
-      b: 0.25,
-    });
-    pdf.drawText(
-      `Latest: ${latestReading?.humidity !== null && latestReading?.humidity !== undefined ? `${latestReading.humidity} %` : 'N/A'}`,
-      412,
-      startY + 38,
-      { font: 'F2', fontSize: 9, r: 0.1, g: 0.1, b: 0.1 }
-    );
-    pdf.drawText(
-      `Min: ${this.round(aggregations._min.humidity) ?? 'N/A'} % | Max: ${this.round(aggregations._max.humidity) ?? 'N/A'} %`,
-      412,
-      startY + 24,
-      { font: 'F1', fontSize: 8, r: 0.3, g: 0.3, b: 0.3 }
-    );
-    pdf.drawText(
-      `Average: ${this.round(aggregations._avg.humidity) ?? 'N/A'} %`,
-      412,
-      startY + 10,
-      { font: 'F1', fontSize: 8, r: 0.3, g: 0.3, b: 0.3 }
-    );
+        // Compute stats for fieldKey
+        let minVal: number | null = null;
+        let maxVal: number | null = null;
+        let sumVal = 0;
+        let cntVal = 0;
 
-    pdf.setY(525);
+        for (const r of tableReadings) {
+          const fv = (r.fieldValues && typeof r.fieldValues === 'object') ? (r.fieldValues as Record<string, any>) : {};
+          const v = fv[m.fieldKey];
+          if (v !== null && v !== undefined && typeof v === 'number' && Number.isFinite(v)) {
+            minVal = minVal === null ? v : Math.min(minVal, v);
+            maxVal = maxVal === null ? v : Math.max(maxVal, v);
+            sumVal += v;
+            cntVal++;
+          }
+        }
+
+        const latestVal = latestFv[m.fieldKey] ?? (
+          m.zone === 'cold' ? latestReading?.coldTemperature :
+          m.zone === 'hot' ? latestReading?.hotTemperature :
+          m.metric === 'humidity' ? latestReading?.humidity : null
+        );
+
+        const unitStr = m.unit ? ` (${m.unit})` : '';
+        const titleText = `${m.label}${unitStr}`;
+
+        pdf.drawBorderedRect(xPos, yPos, boxW, boxH, 0.82, 0.85, 0.9, 1, [0.96, 0.97, 0.99]);
+        pdf.drawText(titleText.substring(0, 26), xPos + 8, yPos + 42, {
+          font: 'F2',
+          fontSize: 8.5,
+          r: 0.1,
+          g: 0.3,
+          b: 0.6,
+        });
+        pdf.drawText(
+          `Latest: ${latestVal !== null && latestVal !== undefined ? `${Number(latestVal).toFixed(1)} ${m.unit || ''}`.trim() : 'N/A'}`,
+          xPos + 8,
+          yPos + 28,
+          { font: 'F2', fontSize: 8.5, r: 0.1, g: 0.1, b: 0.1 }
+        );
+        pdf.drawText(
+          `Min: ${minVal !== null ? minVal.toFixed(1) : 'N/A'} | Max: ${maxVal !== null ? maxVal.toFixed(1) : 'N/A'} | Avg: ${cntVal > 0 ? (sumVal / cntVal).toFixed(1) : 'N/A'}`,
+          xPos + 8,
+          yPos + 12,
+          { font: 'F1', fontSize: 7.5, r: 0.35, g: 0.35, b: 0.35 }
+        );
+      });
+
+      const totalRows = Math.ceil(Math.min(mappings.length, 6) / 3);
+      pdf.setY(startY - (totalRows - 1) * (boxH + 10) - 20);
+    } else {
+      // Legacy fallback KPI cards if no fieldMappings defined
+      const boxW = 170;
+      const boxH = 68;
+      const startY = 545;
+
+      // Cold Temp Card
+      pdf.drawBorderedRect(40, startY, boxW, boxH, 0.75, 0.85, 0.95, 1, [0.93, 0.97, 1.0]);
+      pdf.drawText('Cold Compartment (°C)', 50, startY + 52, {
+        font: 'F2',
+        fontSize: 9,
+        r: 0.05,
+        g: 0.35,
+        b: 0.75,
+      });
+      pdf.drawText(
+        `Latest: ${latestReading?.coldTemperature !== null && latestReading?.coldTemperature !== undefined ? `${latestReading.coldTemperature} °C` : 'N/A'}`,
+        50,
+        startY + 38,
+        { font: 'F2', fontSize: 9, r: 0.1, g: 0.1, b: 0.1 }
+      );
+      pdf.drawText(
+        `Min: ${this.round(aggregations._min.coldTemperature) ?? 'N/A'} °C | Max: ${this.round(aggregations._max.coldTemperature) ?? 'N/A'} °C`,
+        50,
+        startY + 24,
+        { font: 'F1', fontSize: 8, r: 0.3, g: 0.3, b: 0.3 }
+      );
+      pdf.drawText(
+        `Average: ${this.round(aggregations._avg.coldTemperature) ?? 'N/A'} °C`,
+        50,
+        startY + 10,
+        { font: 'F1', fontSize: 8, r: 0.3, g: 0.3, b: 0.3 }
+      );
+
+      // Hot Temp Card
+      pdf.drawBorderedRect(221, startY, boxW, boxH, 0.95, 0.82, 0.78, 1, [1.0, 0.96, 0.95]);
+      pdf.drawText('Hot Compartment (°C)', 231, startY + 52, {
+        font: 'F2',
+        fontSize: 9,
+        r: 0.85,
+        g: 0.25,
+        b: 0.15,
+      });
+      pdf.drawText(
+        `Latest: ${latestReading?.hotTemperature !== null && latestReading?.hotTemperature !== undefined ? `${latestReading.hotTemperature} °C` : 'N/A'}`,
+        231,
+        startY + 38,
+        { font: 'F2', fontSize: 9, r: 0.1, g: 0.1, b: 0.1 }
+      );
+      pdf.drawText(
+        `Min: ${this.round(aggregations._min.hotTemperature) ?? 'N/A'} °C | Max: ${this.round(aggregations._max.hotTemperature) ?? 'N/A'} °C`,
+        231,
+        startY + 24,
+        { font: 'F1', fontSize: 8, r: 0.3, g: 0.3, b: 0.3 }
+      );
+      pdf.drawText(
+        `Average: ${this.round(aggregations._avg.hotTemperature) ?? 'N/A'} °C`,
+        231,
+        startY + 10,
+        { font: 'F1', fontSize: 8, r: 0.3, g: 0.3, b: 0.3 }
+      );
+
+      // Humidity Card
+      pdf.drawBorderedRect(402, startY, boxW, boxH, 0.8, 0.9, 0.8, 1, [0.94, 0.98, 0.94]);
+      pdf.drawText('Relative Humidity (%)', 412, startY + 52, {
+        font: 'F2',
+        fontSize: 9,
+        r: 0.15,
+        g: 0.55,
+        b: 0.25,
+      });
+      pdf.drawText(
+        `Latest: ${latestReading?.humidity !== null && latestReading?.humidity !== undefined ? `${latestReading.humidity} %` : 'N/A'}`,
+        412,
+        startY + 38,
+        { font: 'F2', fontSize: 9, r: 0.1, g: 0.1, b: 0.1 }
+      );
+      pdf.drawText(
+        `Min: ${this.round(aggregations._min.humidity) ?? 'N/A'} % | Max: ${this.round(aggregations._max.humidity) ?? 'N/A'} %`,
+        412,
+        startY + 24,
+        { font: 'F1', fontSize: 8, r: 0.3, g: 0.3, b: 0.3 }
+      );
+      pdf.drawText(
+        `Average: ${this.round(aggregations._avg.humidity) ?? 'N/A'} %`,
+        412,
+        startY + 10,
+        { font: 'F1', fontSize: 8, r: 0.3, g: 0.3, b: 0.3 }
+      );
+
+      pdf.setY(525);
+    }
 
     // Alert Summary Section
     pdf.drawText(`RELEVANT ALERTS (${alerts.length} Recent)`, 40, pdf.getY(), {
