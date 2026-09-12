@@ -2,8 +2,10 @@ import assert from 'node:assert/strict';
 import { checkDatabaseConnection } from '../src/config/database.js';
 import { app } from '../src/app.js';
 import { env } from '../src/config/env.js';
+import { assertSafeTestEnvironment } from '../src/utils/test-guard.js';
 
 async function runTests() {
+  assertSafeTestEnvironment();
   console.log('--- Running Health & Database Integration Tests ---');
 
   // Test 1: Verify database connection

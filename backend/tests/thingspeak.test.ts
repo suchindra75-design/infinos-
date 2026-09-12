@@ -7,8 +7,10 @@ import { prisma } from '../src/config/database.js';
 import { signJwtToken } from '../src/utils/jwt.js';
 import { encryptText } from '../src/utils/crypto.js';
 import { ThingSpeakService } from '../src/services/thingspeak.service.js';
+import { assertSafeTestEnvironment } from '../src/utils/test-guard.js';
 
 async function runThingSpeakTests() {
+  assertSafeTestEnvironment();
   console.log('====================================================');
   console.log('--- Starting ThingSpeak Integration Test Suite ---');
   console.log('====================================================');

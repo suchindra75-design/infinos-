@@ -1,11 +1,28 @@
 import { PrismaClient } from '@prisma/client';
 import { logger } from '../utils/logger.js';
 import { env } from './env.js';
+import { assertSafeTestEnvironment } from '../utils/test-guard.js';
 
 let _prismaInstance: PrismaClient | null = null;
 
 export function getPrismaClient(): PrismaClient {
   if (!_prismaInstance) {
+    const isTestExecution =
+      process.env.NODE_ENV === 'test' ||
+      Boolean(process.env.TEST_MODE) ||
+      process.argv.some(
+        (arg) =>
+          arg.includes('tests/') &&
+          !arg.includes('part6-unit') &&
+          !arg.includes('export.test') &&
+          !arg.includes('archive-unit') &&
+          !arg.includes('test-guard')
+      );
+
+    if (isTestExecution) {
+      assertSafeTestEnvironment();
+    }
+
     _prismaInstance = new PrismaClient({
       log: env.NODE_ENV === 'development' ? ['warn', 'error'] : ['error'],
     });

@@ -5,8 +5,10 @@ import { app } from '../src/app.js';
 import { prisma } from '../src/config/database.js';
 import { signJwtToken } from '../src/utils/jwt.js';
 import { encryptText, decryptText } from '../src/utils/crypto.js';
+import { assertSafeTestEnvironment } from '../src/utils/test-guard.js';
 
 async function runDeviceTests() {
+  assertSafeTestEnvironment();
   console.log('==============================================');
   console.log('--- Starting Device Management Test Suite ---');
   console.log('==============================================');

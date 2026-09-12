@@ -10,8 +10,10 @@ import { alertConfig, calculateAlertSeverity } from '../src/config/alert.config.
 import { deviceSyncService } from '../src/services/device-sync.service.js';
 import { thingspeakService } from '../src/services/thingspeak.service.js';
 import { encryptText } from '../src/utils/crypto.js';
+import { assertSafeTestEnvironment } from '../src/utils/test-guard.js';
 
 async function runAlertsAndAnalyticsTests() {
+  assertSafeTestEnvironment();
   console.log('====================================================');
   console.log('--- Starting Part 6: Alert Engine & Analytics Tests ---');
   console.log('====================================================');

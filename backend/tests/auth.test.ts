@@ -5,8 +5,10 @@ import { app } from '../src/app.js';
 import { prisma } from '../src/config/database.js';
 import { env } from '../src/config/env.js';
 import bcrypt from 'bcryptjs';
+import { assertSafeTestEnvironment } from '../src/utils/test-guard.js';
 
 async function runAuthTests() {
+  assertSafeTestEnvironment();
   console.log('==============================================');
   console.log('--- Starting Authentication Test Suite ---');
   console.log('==============================================');

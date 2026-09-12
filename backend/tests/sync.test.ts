@@ -10,8 +10,10 @@ import { thingspeakService } from '../src/services/thingspeak.service.js';
 import { deviceSyncService } from '../src/services/device-sync.service.js';
 import { DeviceSyncWorker } from '../src/workers/device-sync.worker.js';
 import { calculateDeviceStatus } from '../src/utils/device-status.js';
+import { assertSafeTestEnvironment } from '../src/utils/test-guard.js';
 
 async function runSyncTests() {
+  assertSafeTestEnvironment();
   console.log('====================================================');
   console.log('--- Starting Part 5: Sensor Sync Integration Tests ---');
   console.log('====================================================');
