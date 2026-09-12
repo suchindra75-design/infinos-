@@ -59,4 +59,5 @@ export interface GetFeedsOptions {
   limit?: number;
   from?: string;
   to?: string;
+  fieldMappings?: import('./mapping.types.js').DeviceFieldMapping[] | null;
 }

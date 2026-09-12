@@ -71,15 +71,18 @@ export interface AnalyticsSummary {
   deviceCode: string;
   deviceName: string;
   status: DeviceStatus;
+  fieldMappings?: DeviceFieldMapping[] | null;
   readingCount: number;
   firstReadingTimestamp: string | null;
   latestReadingTimestamp: string | null;
   latest: MetricSummary;
+  latestFieldValues?: Record<string, number | null> | null;
   minimum: MetricSummary;
   maximum: MetricSummary;
   average: MetricSummary;
   activeAlertsCount: number;
 }
+
 
 export interface AnalyticsTimeseries {
   deviceId: string;

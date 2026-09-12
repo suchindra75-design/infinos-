@@ -59,6 +59,7 @@ export class DeviceSyncService {
       const feedsResult = await thingspeakService.getFeeds(device.thingSpeakChannelId, {
         limit: fetchLimit,
         readApiKey,
+        fieldMappings: Array.isArray(device.fieldMappings) ? device.fieldMappings : null,
       });
 
       const rawReadings = feedsResult.readings || [];

@@ -77,6 +77,7 @@ export class AnalyticsService {
       deviceCode: device.deviceCode,
       deviceName: device.name,
       status: device.status,
+      fieldMappings: (device as any).fieldMappings || null,
       readingCount: aggregations._count.id,
       firstReadingTimestamp: aggregations._min.recordedAt || null,
       latestReadingTimestamp: latestReading?.recordedAt || aggregations._max.recordedAt || null,
@@ -85,6 +86,7 @@ export class AnalyticsService {
         hotTemperature: latestReading?.hotTemperature ?? null,
         humidity: latestReading?.humidity ?? null,
       },
+      latestFieldValues: (latestReading?.fieldValues as Record<string, number | null>) || null,
       minimum: {
         coldTemperature: aggregations._min.coldTemperature ?? null,
         hotTemperature: aggregations._min.hotTemperature ?? null,

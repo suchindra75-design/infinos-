@@ -111,7 +111,11 @@ export class ThingSpeakService {
    * Captures all dynamic fields field1..field8 into fieldValues map.
    * Maintains coldTemperature, hotTemperature, humidity for legacy compatibility.
    */
-  public normalizeFeed(feed: ThingSpeakRawFeed, channelId: string | number): NormalizedSensorReading {
+  public normalizeFeed(
+    feed: ThingSpeakRawFeed,
+    channelId: string | number,
+    fieldMappings?: import('../types/mapping.types.js').DeviceFieldMapping[] | null
+  ): NormalizedSensorReading {
     let recordedAt = new Date().toISOString();
     if (feed.created_at) {
       const parsedDate = new Date(feed.created_at);
@@ -126,13 +130,31 @@ export class ThingSpeakService {
       fieldValues[`field${num}`] = this.parseNumberOrNull(feed[key]);
     }
 
+    let coldTemp: number | null = null;
+    let hotTemp: number | null = null;
+    let humidityVal: number | null = null;
+
+    if (fieldMappings && Array.isArray(fieldMappings) && fieldMappings.length > 0) {
+      const coldMapping = fieldMappings.find((m) => m.metric === 'temperature' && m.zone === 'cold');
+      const hotMapping = fieldMappings.find((m) => m.metric === 'temperature' && m.zone === 'hot');
+      const humidityMapping = fieldMappings.find((m) => m.metric === 'humidity');
+
+      if (coldMapping && coldMapping.fieldKey) coldTemp = fieldValues[coldMapping.fieldKey] ?? null;
+      if (hotMapping && hotMapping.fieldKey) hotTemp = fieldValues[hotMapping.fieldKey] ?? null;
+      if (humidityMapping && humidityMapping.fieldKey) humidityVal = fieldValues[humidityMapping.fieldKey] ?? null;
+    }
+
+    if (coldTemp === null) coldTemp = fieldValues['field1'] ?? null;
+    if (hotTemp === null) hotTemp = fieldValues['field3'] ?? null;
+    if (humidityVal === null) humidityVal = fieldValues['field4'] ?? null;
+
     return {
       entryId: Number(feed.entry_id),
       channelId,
       recordedAt,
-      coldTemperature: fieldValues['field1'] ?? null, // Legacy Field 1
-      hotTemperature: fieldValues['field3'] ?? null,  // Legacy Field 3
-      humidity: fieldValues['field4'] ?? null,        // Legacy Field 4
+      coldTemperature: coldTemp,
+      hotTemperature: hotTemp,
+      humidity: humidityVal,
       fieldValues,
     };
   }
@@ -291,7 +313,8 @@ export class ThingSpeakService {
    */
   async getLatestFeed(
     channelId: string,
-    readApiKey?: string | null
+    readApiKey?: string | null,
+    fieldMappings?: import('../types/mapping.types.js').DeviceFieldMapping[] | null
   ): Promise<NormalizedSensorReading | null> {
     const data: ThingSpeakFeedsResponse = await this.requestThingSpeak(
       `/channels/${encodeURIComponent(channelId)}/feeds.json`,
@@ -304,7 +327,7 @@ export class ThingSpeakService {
     }
 
     const latest = data.feeds[data.feeds.length - 1];
-    return this.normalizeFeed(latest, channelId);
+    return this.normalizeFeed(latest, channelId, fieldMappings);
   }
 
   /**
@@ -337,7 +360,7 @@ export class ThingSpeakService {
     );
 
     const feeds = Array.isArray(data.feeds) ? data.feeds : [];
-    const readings = feeds.map((f) => this.normalizeFeed(f, channelId));
+    const readings = feeds.map((f) => this.normalizeFeed(f, channelId, options.fieldMappings));
 
     return {
       channel: data.channel,
@@ -352,12 +375,14 @@ export class ThingSpeakService {
   async getFeedsSince(
     channelId: string,
     sinceTimestamp: string | Date,
-    readApiKey?: string | null
+    readApiKey?: string | null,
+    fieldMappings?: import('../types/mapping.types.js').DeviceFieldMapping[] | null
   ): Promise<NormalizedSensorReading[]> {
     const start = typeof sinceTimestamp === 'string' ? sinceTimestamp : sinceTimestamp.toISOString();
     const result = await this.getFeeds(channelId, {
       readApiKey,
       from: start,
+      fieldMappings,
     });
     return result.readings;
   }

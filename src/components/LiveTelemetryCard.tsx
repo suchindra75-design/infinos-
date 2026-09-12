@@ -212,7 +212,7 @@ export const LiveTelemetryCard: React.FC<LiveTelemetryProps> = ({
       {hasDynamicMappings ? (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3.5 sm:gap-4">
           {fieldMappings.map((m) => {
-            const rawVal = latestReading?.fieldValues?.[m.fieldKey] ?? (
+            const rawVal = latestReading?.fieldValues?.[m.fieldKey] ?? summary?.latestFieldValues?.[m.fieldKey] ?? (
               m.zone === 'cold' ? latest?.coldTemperature :
               m.zone === 'hot' ? latest?.hotTemperature :
               m.metric === 'humidity' ? latest?.humidity : null
