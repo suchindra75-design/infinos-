@@ -425,6 +425,74 @@ async function runExportTests() {
 
     console.log('✓ Test 7 passed: Empty datasets cleanly handled and zero credentials leaked.');
 
+    // ----------------------------------------------------
+    // TEST 8: Dynamic Field Preservation in PDF and CSV
+    // ----------------------------------------------------
+    console.log('Test 8: Dynamic field preservation in PDF and CSV...');
+
+    (prisma.device.findUnique as any) = async (query: any) => {
+      if (query?.select?.fieldMappings !== undefined) {
+        return { id: 'dev-dynamic', deviceCode: 'BAG-DYN', name: 'Dynamic Bag', fieldMappings: null };
+      }
+      return { id: 'dev-dynamic', deviceCode: 'BAG-DYN', name: 'Dynamic Bag', ownerId: adminUser.id, createdAt: new Date() };
+    };
+
+    const dynamicReadings = [
+      {
+        recordedAt: new Date('2026-09-08T10:00:00.000Z'),
+        coldTemperature: null,
+        hotTemperature: null,
+        humidity: null,
+        fieldValues: { field1: 4.2, field2: 5.1 },
+      },
+      {
+        recordedAt: new Date('2026-09-08T10:05:00.000Z'),
+        coldTemperature: null,
+        hotTemperature: null,
+        humidity: null,
+        fieldValues: { field1: 4.5, field2: 5.3 },
+      },
+    ];
+
+    (prisma.sensorReading.findMany as any) = async () => dynamicReadings;
+    (prisma.sensorReading.aggregate as any) = async () => ({
+      _count: { id: 2 },
+      _min: { coldTemperature: null, hotTemperature: null, humidity: null, recordedAt: dynamicReadings[0].recordedAt },
+      _max: { coldTemperature: null, hotTemperature: null, humidity: null, recordedAt: dynamicReadings[1].recordedAt },
+      _avg: { coldTemperature: null, hotTemperature: null, humidity: null },
+    });
+    (prisma.sensorReading.findFirst as any) = async () => dynamicReadings[1];
+    (prisma.alert.findMany as any) = async () => [];
+
+    const csvRes = await exportService.exportCsv('dev-dynamic', { limit: 100 }, adminUser);
+    assert.ok(csvRes.csv.includes('Field 1'), 'CSV must contain Field 1 column');
+    assert.ok(csvRes.csv.includes('Field 2'), 'CSV must contain Field 2 column');
+    assert.ok(!csvRes.csv.includes('coldTemperature'), 'CSV must NOT contain legacy coldTemperature column');
+    assert.ok(!csvRes.csv.includes('hotTemperature'), 'CSV must NOT contain legacy hotTemperature column');
+    assert.ok(!csvRes.csv.includes('humidity'), 'CSV must NOT contain legacy humidity column');
+
+    const { pdfBuffer } = await exportService.exportPdf('dev-dynamic', { limit: 100 }, adminUser);
+    const pdfStr = pdfBuffer.toString('utf-8');
+    assert.ok(pdfStr.includes('Field 1'), 'PDF must contain Field 1 label');
+    assert.ok(pdfStr.includes('Field 2'), 'PDF must contain Field 2 label');
+    assert.ok(pdfStr.includes('4.2') || pdfStr.includes('4.5'), 'PDF must contain Field 1 values');
+    assert.ok(pdfStr.includes('5.1') || pdfStr.includes('5.3'), 'PDF must contain Field 2 values');
+    assert.ok(!pdfStr.includes('Cold Compartment (°C)') || pdfStr.indexOf('Cold Compartment (°C)') > pdfStr.indexOf('Field 1'),
+      'PDF should prefer Field labels over legacy Cold Compartment');
+
+    // Test 8b: Verify legacy fallback still works when no fieldValues exist
+    (prisma.sensorReading.findMany as any) = async () => [];
+    (prisma.sensorReading.aggregate as any) = async () => ({
+      _count: { id: 0 }, _min: { coldTemperature: null, hotTemperature: null, humidity: null, recordedAt: null },
+      _max: { coldTemperature: null, hotTemperature: null, humidity: null, recordedAt: null },
+      _avg: { coldTemperature: null, hotTemperature: null, humidity: null },
+    });
+    (prisma.sensorReading.findFirst as any) = async () => null;
+    const legacyCsvRes = await exportService.exportCsv('dev-dynamic', { limit: 10 }, adminUser);
+    assert.ok(legacyCsvRes.csv.includes('coldTemperature,hotTemperature,humidity'), 'Legacy CSV fallback must work');
+
+    console.log('✓ Test 8 passed: Dynamic field preservation works in PDF and CSV.');
+
   } finally {
     // Restore originals
     prisma.device.findUnique = originalFindUnique;

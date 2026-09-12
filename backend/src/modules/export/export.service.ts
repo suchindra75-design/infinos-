@@ -54,9 +54,9 @@ export class ExportService {
     return device;
   }
 
-  /**
-   * Escapes values according to RFC 4180 for CSV output.
-   */
+/**
+    * Escapes values according to RFC 4180 for CSV output.
+    */
   private escapeCsvValue(val: string | number | null | undefined): string {
     if (val === null || val === undefined) {
       return '';
@@ -69,8 +69,67 @@ export class ExportService {
   }
 
   /**
-   * Helper to round numbers to 2 decimal places safely.
-   */
+    * Derives field mappings from fieldValues keys present in sensor readings.
+    * Used as fallback when device.fieldMappings is unavailable.
+    */
+  private deriveMappingsFromFieldValues(readings: Array<{ fieldValues?: any }>): any[] {
+    const activeKeys = new Set<string>();
+    for (const r of readings) {
+      const fv = (r.fieldValues && typeof r.fieldValues === 'object') ? (r.fieldValues as Record<string, any>) : {};
+      for (const k of Object.keys(fv)) {
+        if (k.startsWith('field')) {
+          const v = fv[k];
+          if (v !== null && v !== undefined && typeof v === 'number' && Number.isFinite(v)) {
+            activeKeys.add(k);
+          }
+        }
+      }
+    }
+
+    const sortedKeys = Array.from(activeKeys).sort((a: string, b: string) => {
+      const numA = Number(a.replace('field', ''));
+      const numB = Number(b.replace('field', ''));
+      return numA - numB;
+    });
+
+    return sortedKeys.map((key: string, idx: number) => {
+      const num = Number(key.replace('field', '')) || (idx + 1);
+      const label = `Field ${num}`;
+      const lower = label.toLowerCase();
+      let metric: 'temperature' | 'humidity' | 'other' = 'other';
+      let zone: 'cold' | 'hot' | 'ambient' | 'none' = 'none';
+      let unit = '';
+
+      if (lower.includes('humid') || lower.includes('%')) {
+        metric = 'humidity';
+        zone = 'ambient';
+        unit = '%';
+      } else if (lower.includes('cold') || lower.includes('chilled') || lower.includes('fridge')) {
+        metric = 'temperature';
+        zone = 'cold';
+        unit = '°C';
+      } else if (lower.includes('hot') || lower.includes('warm') || lower.includes('heater')) {
+        metric = 'temperature';
+        zone = 'hot';
+        unit = '°C';
+      } else if (lower.includes('temp') || lower.includes('°c') || lower.includes('degree')) {
+        metric = 'temperature';
+        unit = '°C';
+      } else if (lower.includes('volt') || lower.includes('battery') || lower.includes(' v')) {
+        metric = 'other';
+        unit = 'V';
+      } else if (lower.includes('press') || lower.includes('bar') || lower.includes('hpa')) {
+        metric = 'other';
+        unit = 'hPa';
+      }
+
+      return { fieldNumber: num, fieldKey: key, label, metric, zone, unit };
+    });
+  }
+
+  /**
+    * Helper to round numbers to 2 decimal places safely.
+    */
   private round(val: number | null | undefined): number | null {
     if (val === null || val === undefined) return null;
     return Math.round(val * 100) / 100;
@@ -115,11 +174,13 @@ export class ExportService {
       },
     });
 
+    const effectiveMappings = mappings.length > 0 ? mappings : this.deriveMappingsFromFieldValues(readings);
+
     const filename = this.generateFilename(device.deviceCode, 'csv');
 
-    if (mappings.length > 0) {
-      // Dynamic CSV headers from device fieldMappings
-      const fieldHeaders = mappings.map((m: any) => {
+    if (effectiveMappings.length > 0) {
+      // Dynamic CSV headers from device fieldMappings or derived fieldValues
+      const fieldHeaders = effectiveMappings.map((m: any) => {
         const unit = m.unit ? ` (${m.unit})` : '';
         return `${m.label}${unit}`;
       });
@@ -128,7 +189,7 @@ export class ExportService {
 
       for (const r of readings) {
         const fv = (r.fieldValues && typeof r.fieldValues === 'object') ? (r.fieldValues as Record<string, any>) : {};
-        const fieldValues = mappings.map((m: any) => {
+        const fieldValues = effectiveMappings.map((m: any) => {
           const val = fv[m.fieldKey] ?? null;
           return this.escapeCsvValue(val);
         });
@@ -145,7 +206,7 @@ export class ExportService {
       return { csv: csvContent, filename };
     }
 
-    // Legacy fallback: fixed 3-column format
+    // Legacy fallback: fixed 3-column format (only when no fieldMappings AND no fieldValues exist)
     const headerRow = 'recordedAt,deviceCode,deviceName,coldTemperature,hotTemperature,humidity';
     const rows: string[] = [headerRow];
 
@@ -154,9 +215,9 @@ export class ExportService {
         this.escapeCsvValue(r.recordedAt.toISOString()),
         this.escapeCsvValue(device.deviceCode),
         this.escapeCsvValue(device.name),
-        this.escapeCsvValue(r.coldTemperature),
-        this.escapeCsvValue(r.hotTemperature),
-        this.escapeCsvValue(r.humidity),
+        this.escapeCsvValue(r.coldTemperature ?? ''),
+        this.escapeCsvValue(r.hotTemperature ?? ''),
+        this.escapeCsvValue(r.humidity ?? ''),
       ].join(',');
       rows.push(row);
     }
@@ -252,6 +313,8 @@ export class ExportService {
       }),
     ]);
 
+    const effectiveMappings = mappings.length > 0 ? mappings : this.deriveMappingsFromFieldValues(tableReadings);
+
     const filename = this.generateFilename(device.deviceCode, 'pdf');
 
     // 2. Build PDF Document
@@ -322,18 +385,18 @@ export class ExportService {
       b: 0.25,
     });
 
-    if (mappings.length > 0) {
+    if (effectiveMappings.length > 0) {
       // Dynamic KPI Cards for all configured fields
       const latestFv = (latestReading?.fieldValues && typeof latestReading.fieldValues === 'object')
         ? (latestReading.fieldValues as Record<string, any>)
         : {};
 
-      const colsCount = Math.min(mappings.length, 3);
+      const colsCount = Math.min(effectiveMappings.length, 3);
       const boxW = Math.floor((532 - (colsCount - 1) * 11) / colsCount);
       const boxH = 58;
       const startY = 550;
 
-      mappings.slice(0, 6).forEach((m: any, idx: number) => {
+      effectiveMappings.slice(0, 6).forEach((m: any, idx: number) => {
         const rowIdx = Math.floor(idx / 3);
         const colIdx = idx % 3;
         const xPos = 40 + colIdx * (boxW + 11);
@@ -387,7 +450,7 @@ export class ExportService {
         );
       });
 
-      const totalRows = Math.ceil(Math.min(mappings.length, 6) / 3);
+      const totalRows = Math.ceil(Math.min(effectiveMappings.length, 6) / 3);
       pdf.setY(startY - (totalRows - 1) * (boxH + 10) - 20);
     } else {
       // Legacy fallback KPI cards if no fieldMappings defined
@@ -557,11 +620,11 @@ export class ExportService {
     );
     pdf.setY(pdf.getY() - 14);
 
-    // Build dynamic reading columns from fieldMappings, or use legacy 3-column layout
+    // Build dynamic reading columns from effectiveMappings, or use legacy 3-column layout
     const readingCols: PdfTableColumn[] = [{ header: 'Timestamp (UTC)', width: 160 }];
-    if (mappings.length > 0) {
-      const fieldColWidth = Math.min(Math.floor(372 / mappings.length), 130);
-      for (const m of mappings) {
+    if (effectiveMappings.length > 0) {
+      const fieldColWidth = Math.min(Math.floor(372 / effectiveMappings.length), 130);
+      for (const m of effectiveMappings) {
         const unit = m.unit ? ` (${m.unit})` : '';
         readingCols.push({ header: `${m.label}${unit}`, width: fieldColWidth, align: 'right' });
       }
@@ -607,11 +670,11 @@ export class ExportService {
         const r = tableReadings[i];
         let rowVals: string[];
 
-        if (mappings.length > 0) {
+        if (effectiveMappings.length > 0) {
           const fv = (r.fieldValues && typeof r.fieldValues === 'object') ? (r.fieldValues as Record<string, any>) : {};
           rowVals = [
             r.recordedAt.toISOString().replace('T', ' ').substring(0, 19),
-            ...mappings.map((m: any) => {
+            ...effectiveMappings.map((m: any) => {
               const val = fv[m.fieldKey];
               return val !== null && val !== undefined ? `${Number(val).toFixed(1)} ${m.unit || ''}`.trim() : '--';
             }),
