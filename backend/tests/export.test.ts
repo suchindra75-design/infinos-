@@ -1,4 +1,6 @@
 import assert from 'node:assert/strict';
+import { mkdir, writeFile } from 'node:fs/promises';
+import path from 'node:path';
 import { UserRole, AlertType, AlertSeverity } from '@prisma/client';
 import { exportQuerySchema } from '../src/modules/export/export.validation.js';
 import { exportService, ExportService } from '../src/modules/export/export.service.js';
@@ -626,6 +628,73 @@ async function runExportTests() {
     }
 
     console.log('✓ Test 10 passed: matrix A–K handled by the same field-agnostic PDF path.');
+
+    // ----------------------------------------------------
+    // TEST 11: Regression - report summary/table must share one period dataset
+    // ----------------------------------------------------
+    console.log('Test 11: Selected-period summary/table consistency and inclusive end date...');
+    const periodStart = new Date('2026-09-10T00:00:00.000Z');
+    const periodEnd = new Date('2026-09-10T23:59:59.999Z');
+    const reportRows = [
+      // Outside the requested day: this is the value that used to leak into Latest.
+      { recordedAt: new Date('2026-09-09T23:59:59.999Z'), coldTemperature: null, hotTemperature: null, humidity: null, fieldValues: { field1: 25.06, field2: 'outside' } },
+      { recordedAt: new Date('2026-09-10T00:00:00.000Z'), coldTemperature: null, hotTemperature: null, humidity: null, fieldValues: { field1: '10.0', field2: 'start' } },
+      // Exactly on the inclusive end boundary: it must be in the report.
+      { recordedAt: new Date('2026-09-10T23:59:59.999Z'), coldTemperature: null, hotTemperature: null, humidity: null, fieldValues: { field1: '11.0', field2: 'end' } },
+      { recordedAt: new Date('2026-09-11T00:00:00.000Z'), coldTemperature: null, hotTemperature: null, humidity: null, fieldValues: { field1: 30.0, field2: 'outside-after' } },
+    ];
+    const mappings = [
+      { fieldNumber: 1, fieldKey: 'field1', label: 'Cold Compartment', metric: 'temperature', zone: 'cold', unit: '°C' },
+      { fieldNumber: 2, fieldKey: 'field2', label: 'Door Status', metric: 'other', zone: 'none', unit: '' },
+    ];
+    const filterRows = (where: any) => reportRows.filter((r) => {
+      const range = where.recordedAt || {};
+      return (!range.gte || r.recordedAt >= range.gte) && (!range.lte || r.recordedAt <= range.lte);
+    });
+    const queryWheres: any[] = [];
+    (prisma.device.findUnique as any) = async (query: any) => query?.select?.fieldMappings !== undefined
+      ? { fieldMappings: mappings }
+      : { id: 'period-device', deviceCode: 'BAG-PERIOD', name: 'Period Bag', ownerId: adminUser.id, createdAt: new Date() };
+    (prisma.sensorReading.aggregate as any) = async ({ where }: any) => {
+      queryWheres.push(where);
+      const rows = filterRows(where);
+      return {
+        _count: { id: rows.length },
+        _min: { coldTemperature: null, hotTemperature: null, humidity: null, recordedAt: rows[0]?.recordedAt ?? null },
+        _max: { coldTemperature: null, hotTemperature: null, humidity: null, recordedAt: rows.at(-1)?.recordedAt ?? null },
+        _avg: { coldTemperature: null, hotTemperature: null, humidity: null },
+      };
+    };
+    (prisma.sensorReading.findFirst as any) = async ({ where }: any) => {
+      queryWheres.push(where);
+      return filterRows(where).at(-1) ?? null;
+    };
+    (prisma.sensorReading.findMany as any) = async ({ where }: any) => {
+      queryWheres.push(where);
+      return filterRows(where);
+    };
+    (prisma.alert.findMany as any) = async () => [];
+
+    const { pdfBuffer: periodPdf } = await exportService.exportPdf(
+      'period-device',
+      { from: periodStart.toISOString(), to: periodEnd.toISOString(), limit: 1 },
+      adminUser
+    );
+    const periodText = periodPdf.toString('utf-8');
+    const pdfOutputDir = path.resolve(process.cwd(), 'output/pdf');
+    await mkdir(pdfOutputDir, { recursive: true });
+    await writeFile(path.join(pdfOutputDir, 'selected-period-regression.pdf'), periodPdf);
+    assert.ok(periodText.includes('Total Records: 2'));
+    assert.ok(periodText.includes('RECORDED SENSOR READINGS \\(2\\)'));
+    assert.ok(periodText.includes('Latest: 11.0'));
+    assert.ok(periodText.includes('Min: 10.0 | Max: 11.0 | Avg: 10.5'));
+    assert.ok(periodText.includes('2026-09-10 00:00:00'));
+    assert.ok(periodText.includes('2026-09-10 23:59:59'));
+    assert.equal(periodText.includes('25.1'), false, 'latest outside selected range must not leak into the report');
+    assert.equal(queryWheres.length, 3);
+    assert.ok(queryWheres.every((where) => where.recordedAt.gte.getTime() === periodStart.getTime()));
+    assert.ok(queryWheres.every((where) => where.recordedAt.lte.getTime() === periodEnd.getTime()));
+    console.log('✓ Test 11 passed: aggregate, latest, and table use exactly one inclusive selected-period dataset.');
 
   } finally {
     // Restore originals

@@ -212,11 +212,12 @@ export class ExportService {
       if (query.to) where.recordedAt.lte = new Date(query.to);
     }
 
-    // Chronological order (ASC), strictly bounded by limit
+    // CSV and PDF are audit exports: include every stored reading in the
+    // selected PostgreSQL period.  A UI/API limit must never make the table a
+    // different dataset from its report totals or statistics.
     const readings = await prisma.sensorReading.findMany({
       where,
       orderBy: { recordedAt: 'asc' },
-      take: query.limit,
       select: {
         recordedAt: true,
         coldTemperature: true,
@@ -326,7 +327,9 @@ export class ExportService {
         },
       }),
       prisma.sensorReading.findFirst({
-        where: { deviceId: device.id },
+        // The report's summary and table must describe the same historical
+        // dataset, including when a date range was selected.
+        where,
         orderBy: { recordedAt: 'desc' },
         select: {
           coldTemperature: true,
@@ -350,11 +353,11 @@ export class ExportService {
           resolvedAt: true,
         },
       }),
-      // Bound the detailed sensor readings in the PDF table to maintain low memory footprint
+      // Use precisely the same complete historical dataset as CSV and the
+      // aggregate query.  Do not silently truncate the audit table.
       prisma.sensorReading.findMany({
         where,
         orderBy: { recordedAt: 'asc' },
-        take: Math.min(query.limit, 250),
         select: {
           recordedAt: true,
           coldTemperature: true,
@@ -420,7 +423,7 @@ export class ExportService {
       g: 0.5,
       b: 0.2,
     });
-    pdf.drawText(`Export Limit: ${query.limit} readings`, 300, 650, {
+    pdf.drawText('All matching PostgreSQL readings included', 300, 650, {
       font: 'F1',
       fontSize: 8.5,
       r: 0.4,
@@ -670,7 +673,7 @@ export class ExportService {
     // Sensor Readings Table Section
     pdf.checkPageBreak(60);
     pdf.drawText(
-      `RECORDED SENSOR READINGS (${tableReadings.length}${aggregations._count.id > tableReadings.length ? ` of ${aggregations._count.id}` : ''})`,
+      `RECORDED SENSOR READINGS (${tableReadings.length})`,
       40,
       pdf.getY(),
       {

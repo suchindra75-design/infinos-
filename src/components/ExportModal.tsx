@@ -18,7 +18,6 @@ export const ExportModal: React.FC<ExportModalProps> = ({
   const [exportType, setExportType] = useState<'csv' | 'pdf'>('csv');
   const [from, setFrom] = useState<string>('');
   const [to, setTo] = useState<string>('');
-  const [limit, setLimit] = useState<number>(500);
   const [isExporting, setIsExporting] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
@@ -32,10 +31,18 @@ export const ExportModal: React.FC<ExportModalProps> = ({
     setIsExporting(true);
 
     try {
-      const options: { from?: string; to?: string; limit?: number } = {};
-      if (from) options.from = new Date(from).toISOString();
-      if (to) options.to = new Date(to).toISOString();
-      if (limit) options.limit = Number(limit);
+      const options: { from?: string; to?: string } = {};
+      // Date controls represent whole local calendar days. Convert their
+      // inclusive start/end boundaries to UTC before the API request so a
+      // reading on the selected end date is retained.
+      if (from) {
+        const start = new Date(`${from}T00:00:00`);
+        options.from = start.toISOString();
+      }
+      if (to) {
+        const end = new Date(`${to}T23:59:59.999`);
+        options.to = end.toISOString();
+      }
 
       if (exportType === 'csv') {
         await api.exports.downloadCsv(deviceId, deviceCode, options);
@@ -143,7 +150,7 @@ export const ExportModal: React.FC<ExportModalProps> = ({
                 From (Optional)
               </label>
               <input
-                type="datetime-local"
+                type="date"
                 value={from}
                 onChange={(e) => setFrom(e.target.value)}
                 className="w-full bg-[#07080a] border border-white/[0.1] rounded-lg px-2.5 py-2 text-xs text-zinc-200 font-data focus:outline-none focus:border-[#ff6b00] min-h-[42px]"
@@ -154,7 +161,7 @@ export const ExportModal: React.FC<ExportModalProps> = ({
                 To (Optional)
               </label>
               <input
-                type="datetime-local"
+                type="date"
                 value={to}
                 onChange={(e) => setTo(e.target.value)}
                 className="w-full bg-[#07080a] border border-white/[0.1] rounded-lg px-2.5 py-2 text-xs text-zinc-200 font-data focus:outline-none focus:border-[#ff6b00] min-h-[42px]"
@@ -162,25 +169,8 @@ export const ExportModal: React.FC<ExportModalProps> = ({
             </div>
           </div>
 
-          {/* Record Limit */}
-          <div>
-            <label className="text-[10px] uppercase font-semibold text-zinc-400 block mb-1">
-              Maximum Records
-            </label>
-            <select
-              value={limit}
-              onChange={(e) => setLimit(Number(e.target.value))}
-              className="w-full bg-[#07080a] border border-white/[0.1] rounded-lg px-3 py-2 text-xs text-zinc-200 font-data focus:outline-none focus:border-[#ff6b00] min-h-[42px]"
-            >
-              <option value={100}>100 readings</option>
-              <option value={500}>500 readings</option>
-              <option value={1000}>1,000 readings</option>
-              <option value={5000}>5,000 readings (CSV only)</option>
-            </select>
-          </div>
-
           <p className="text-[10px] text-zinc-500 italic font-body">
-            Exports are compiled directly from PostgreSQL sensor readings with certified timestamps.
+            Exports include every PostgreSQL sensor reading in the selected date range, using UTC-certified timestamps.
           </p>
 
           {/* Actions */}
