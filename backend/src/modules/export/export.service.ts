@@ -69,17 +69,98 @@ export class ExportService {
   }
 
   /**
-    * Derives field mappings from fieldValues keys present in sensor readings.
-    * Used as fallback when device.fieldMappings is unavailable.
-    */
+     * Parses any raw field value into a finite number, or null.
+     * Accepts JS numbers and numeric strings (ThingSpeak feeds arrive as strings).
+     * Returns null for null/undefined/empty/non-numeric values (e.g. Door Status "OPEN").
+     */
+  private toFiniteNumber(val: unknown): number | null {
+    if (val === null || val === undefined) return null;
+    if (typeof val === 'number') {
+      return Number.isFinite(val) ? val : null;
+    }
+    if (typeof val === 'string') {
+      const trimmed = val.trim();
+      if (trimmed === '') return null;
+      const parsed = Number(trimmed);
+      return Number.isFinite(parsed) ? parsed : null;
+    }
+    return null;
+  }
+
+  /**
+     * Returns true when a raw field value counts as "present" for field discovery.
+     * Any non-null, non-undefined, non-empty value (numeric OR non-numeric string)
+     * keeps the field alive so string fields like Door Status are never dropped.
+     */
+  private hasFieldValue(val: unknown): boolean {
+    if (val === null || val === undefined) return false;
+    if (typeof val === 'number') return Number.isFinite(val);
+    if (typeof val === 'string') return val.trim() !== '';
+    if (typeof val === 'boolean') return true;
+    return true;
+  }
+
+  /**
+     * Formats a raw field value for PDF display.
+     * Numeric values (numbers or numeric strings) render with 1 decimal + unit.
+     * Non-numeric values render as their raw string so Door Status etc. stay visible.
+     * Missing values render as '--'.
+     */
+  private formatFieldValue(val: unknown, unit: string): string {
+    if (val === null || val === undefined) return '--';
+    if (typeof val === 'string' && val.trim() === '') return '--';
+    const num = this.toFiniteNumber(val);
+    if (num !== null) {
+      return `${num.toFixed(1)} ${unit || ''}`.trim();
+    }
+    return String(val);
+  }
+
+  /**
+     * Normalizes raw device fieldMappings into a guaranteed shape:
+     * { fieldNumber, fieldKey, label, metric, zone, unit }.
+     * Never invents Cold/Hot/Humidity semantics: missing labels fall back to "Field N".
+     */
+  private normalizeMappings(raw: unknown): any[] {
+    if (!Array.isArray(raw)) return [];
+    const out: any[] = [];
+    for (const m of raw as any[]) {
+      if (!m || typeof m !== 'object') continue;
+      const num = Number(m.fieldNumber) && Number.isFinite(Number(m.fieldNumber))
+        ? Number(m.fieldNumber)
+        : (Number(String(m.fieldKey || '').replace('field', '')) || out.length + 1);
+      const fieldKey: string = typeof m.fieldKey === 'string' && m.fieldKey.startsWith('field')
+        ? m.fieldKey
+        : `field${num}`;
+      const label: string = typeof m.label === 'string' && m.label.trim().length > 0
+        ? m.label.trim()
+        : `Field ${num}`;
+      out.push({
+        fieldNumber: num,
+        fieldKey,
+        label,
+        metric: m.metric ?? 'other',
+        zone: m.zone ?? 'none',
+        unit: typeof m.unit === 'string' ? m.unit : '',
+      });
+    }
+    out.sort((a, b) => a.fieldNumber - b.fieldNumber);
+    return out;
+  }
+
+  /**
+     * Derives field mappings from fieldValues keys present in sensor readings.
+     * Used as fallback when device.fieldMappings is unavailable.
+     * Includes ANY present value (numeric, numeric-string, or non-numeric string)
+     * and never invents Cold/Hot/Humidity semantics: labels are generic "Field N".
+     */
   private deriveMappingsFromFieldValues(readings: Array<{ fieldValues?: any }>): any[] {
     const activeKeys = new Set<string>();
     for (const r of readings) {
       const fv = (r.fieldValues && typeof r.fieldValues === 'object') ? (r.fieldValues as Record<string, any>) : {};
       for (const k of Object.keys(fv)) {
         if (k.startsWith('field')) {
-          const v = fv[k];
-          if (v !== null && v !== undefined && typeof v === 'number' && Number.isFinite(v)) {
+          if (this.hasFieldValue(fv[k])) {
             activeKeys.add(k);
           }
         }
@@ -92,38 +173,9 @@ export class ExportService {
       return numA - numB;
     });
 
-    return sortedKeys.map((key: string, idx: number) => {
-      const num = Number(key.replace('field', '')) || (idx + 1);
-      const label = `Field ${num}`;
-      const lower = label.toLowerCase();
-      let metric: 'temperature' | 'humidity' | 'other' = 'other';
-      let zone: 'cold' | 'hot' | 'ambient' | 'none' = 'none';
-      let unit = '';
-
-      if (lower.includes('humid') || lower.includes('%')) {
-        metric = 'humidity';
-        zone = 'ambient';
-        unit = '%';
-      } else if (lower.includes('cold') || lower.includes('chilled') || lower.includes('fridge')) {
-        metric = 'temperature';
-        zone = 'cold';
-        unit = '°C';
-      } else if (lower.includes('hot') || lower.includes('warm') || lower.includes('heater')) {
-        metric = 'temperature';
-        zone = 'hot';
-        unit = '°C';
-      } else if (lower.includes('temp') || lower.includes('°c') || lower.includes('degree')) {
-        metric = 'temperature';
-        unit = '°C';
-      } else if (lower.includes('volt') || lower.includes('battery') || lower.includes(' v')) {
-        metric = 'other';
-        unit = 'V';
-      } else if (lower.includes('press') || lower.includes('bar') || lower.includes('hpa')) {
-        metric = 'other';
-        unit = 'hPa';
-      }
-
-      return { fieldNumber: num, fieldKey: key, label, metric, zone, unit };
+    return sortedKeys.map((key: string) => {
+      const num = Number(key.replace('field', '')) || 1;
+      return { fieldNumber: num, fieldKey: key, label: `Field ${num}`, metric: 'other', zone: 'none', unit: '' };
     });
   }
 
@@ -151,7 +203,7 @@ export class ExportService {
       where: { id: device.id },
       select: { fieldMappings: true },
     });
-    const mappings: any[] = Array.isArray(fullDevice?.fieldMappings) ? (fullDevice.fieldMappings as any[]) : [];
+    const mappings: any[] = this.normalizeMappings(fullDevice?.fieldMappings);
 
     const where: Prisma.SensorReadingWhereInput = { deviceId: device.id };
     if (query.from || query.to) {
@@ -241,7 +293,7 @@ export class ExportService {
       where: { id: device.id },
       select: { fieldMappings: true },
     });
-    const mappings: any[] = Array.isArray(fullDevice?.fieldMappings) ? (fullDevice.fieldMappings as any[]) : [];
+    const mappings: any[] = this.normalizeMappings(fullDevice?.fieldMappings);
 
     const where: Prisma.SensorReadingWhereInput = { deviceId: device.id };
     if (query.from || query.to) {
@@ -386,23 +438,26 @@ export class ExportService {
     });
 
     if (effectiveMappings.length > 0) {
-      // Dynamic KPI Cards for all configured fields
+      // Dynamic KPI Cards generated from the ACTUAL device fields.
+      // One card per field; numeric fields get Latest/Min/Max/Avg,
+      // non-numeric fields show their raw Latest value (no fabricated statistics).
       const latestFv = (latestReading?.fieldValues && typeof latestReading.fieldValues === 'object')
         ? (latestReading.fieldValues as Record<string, any>)
         : {};
 
-      const colsCount = Math.min(effectiveMappings.length, 3);
+      const cards = effectiveMappings.slice(0, 8);
+      const colsCount = Math.min(cards.length, 3);
       const boxW = Math.floor((532 - (colsCount - 1) * 11) / colsCount);
       const boxH = 58;
       const startY = 550;
 
-      effectiveMappings.slice(0, 6).forEach((m: any, idx: number) => {
+      cards.forEach((m: any, idx: number) => {
         const rowIdx = Math.floor(idx / 3);
         const colIdx = idx % 3;
         const xPos = 40 + colIdx * (boxW + 11);
         const yPos = startY - rowIdx * (boxH + 10);
 
-        // Compute stats for fieldKey
+        // Compute stats for fieldKey (numeric values only, incl. numeric strings)
         let minVal: number | null = null;
         let maxVal: number | null = null;
         let sumVal = 0;
@@ -410,20 +465,23 @@ export class ExportService {
 
         for (const r of tableReadings) {
           const fv = (r.fieldValues && typeof r.fieldValues === 'object') ? (r.fieldValues as Record<string, any>) : {};
-          const v = fv[m.fieldKey];
-          if (v !== null && v !== undefined && typeof v === 'number' && Number.isFinite(v)) {
-            minVal = minVal === null ? v : Math.min(minVal, v);
-            maxVal = maxVal === null ? v : Math.max(maxVal, v);
-            sumVal += v;
+          const num = this.toFiniteNumber(fv[m.fieldKey]);
+          if (num !== null) {
+            minVal = minVal === null ? num : Math.min(minVal, num);
+            maxVal = maxVal === null ? num : Math.max(maxVal, num);
+            sumVal += num;
             cntVal++;
           }
         }
 
-        const latestVal = latestFv[m.fieldKey] ?? (
-          m.zone === 'cold' ? latestReading?.coldTemperature :
-          m.zone === 'hot' ? latestReading?.hotTemperature :
-          m.metric === 'humidity' ? latestReading?.humidity : null
-        );
+        const rawLatest = latestFv[m.fieldKey] !== undefined && latestFv[m.fieldKey] !== null
+          ? latestFv[m.fieldKey]
+          : (
+            m.zone === 'cold' ? latestReading?.coldTemperature :
+            m.zone === 'hot' ? latestReading?.hotTemperature :
+            m.metric === 'humidity' ? latestReading?.humidity : null
+          );
+        const isNumericField = cntVal > 0 || this.toFiniteNumber(rawLatest) !== null;
 
         const unitStr = m.unit ? ` (${m.unit})` : '';
         const titleText = `${m.label}${unitStr}`;
@@ -436,21 +494,26 @@ export class ExportService {
           g: 0.3,
           b: 0.6,
         });
+        const latestStr = rawLatest !== null && rawLatest !== undefined && !(typeof rawLatest === 'string' && rawLatest.trim() === '')
+          ? this.formatFieldValue(rawLatest, m.unit || '')
+          : 'N/A';
         pdf.drawText(
-          `Latest: ${latestVal !== null && latestVal !== undefined ? `${Number(latestVal).toFixed(1)} ${m.unit || ''}`.trim() : 'N/A'}`,
+          `Latest: ${latestStr}`,
           xPos + 8,
           yPos + 28,
           { font: 'F2', fontSize: 8.5, r: 0.1, g: 0.1, b: 0.1 }
         );
         pdf.drawText(
-          `Min: ${minVal !== null ? minVal.toFixed(1) : 'N/A'} | Max: ${maxVal !== null ? maxVal.toFixed(1) : 'N/A'} | Avg: ${cntVal > 0 ? (sumVal / cntVal).toFixed(1) : 'N/A'}`,
+          isNumericField
+            ? `Min: ${minVal !== null ? minVal.toFixed(1) : 'N/A'} | Max: ${maxVal !== null ? maxVal.toFixed(1) : 'N/A'} | Avg: ${cntVal > 0 ? (sumVal / cntVal).toFixed(1) : 'N/A'}`
+            : `Readings: ${tableReadings.length} (non-numeric)`,
           xPos + 8,
           yPos + 12,
           { font: 'F1', fontSize: 7.5, r: 0.35, g: 0.35, b: 0.35 }
         );
       });
 
-      const totalRows = Math.ceil(Math.min(effectiveMappings.length, 6) / 3);
+      const totalRows = Math.ceil(cards.length / 3);
       pdf.setY(startY - (totalRows - 1) * (boxH + 10) - 20);
     } else {
       // Legacy fallback KPI cards if no fieldMappings defined
@@ -674,10 +737,7 @@ export class ExportService {
           const fv = (r.fieldValues && typeof r.fieldValues === 'object') ? (r.fieldValues as Record<string, any>) : {};
           rowVals = [
             r.recordedAt.toISOString().replace('T', ' ').substring(0, 19),
-            ...effectiveMappings.map((m: any) => {
-              const val = fv[m.fieldKey];
-              return val !== null && val !== undefined ? `${Number(val).toFixed(1)} ${m.unit || ''}`.trim() : '--';
-            }),
+            ...effectiveMappings.map((m: any) => this.formatFieldValue(fv[m.fieldKey], m.unit || '')),
           ];
         } else {
           rowVals = [
