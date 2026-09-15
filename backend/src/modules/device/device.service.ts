@@ -13,7 +13,6 @@ import {
 } from './device.validation.js';
 import { thingspeakService } from '../../services/thingspeak.service.js';
 import { deviceSyncService } from '../../services/device-sync.service.js';
-import { calculateDeviceStatus } from '../../utils/device-status.js';
 import { NormalizedSensorReading } from '../../types/thingspeak.types.js';
 
 export class DeviceService {
@@ -105,7 +104,9 @@ export class DeviceService {
         name: input.name.trim(),
         thingSpeakChannelId: channelId,
         thingSpeakReadKey: encryptedKey,
-        fieldMappings: input.fieldMappings || null,
+        // Omit absent JSON rather than passing JavaScript null, which Prisma
+        // distinguishes from its JSON-null sentinel. The database default stays null.
+        fieldMappings: input.fieldMappings ?? undefined,
         ownerId,
         settings: {
           create: {}, // Provision default thresholds defined in schema
@@ -236,8 +237,10 @@ export class DeviceService {
   }
 
   /**
-   * Retrieves current status information for a device.
-   * Real-time calculation based on age of lastSeenAt against configurable thresholds.
+   * Retrieves the persisted connectivity result from the sync worker.
+   * `lastSeenAt` is retained solely as the timestamp of the newest stored sensor
+   * reading; deriving connectivity from it would mark a reachable quiet channel
+   * offline and would couple history availability to live telemetry.
    */
   async getDeviceStatus(id: string): Promise<DeviceStatusResponse> {
     const device = await prisma.device.findUnique({
@@ -246,16 +249,6 @@ export class DeviceService {
 
     if (!device) {
       throw new AppError('Device not found', 404, 'DEVICE_NOT_FOUND');
-    }
-
-    // Dynamic real-time calculation based on actual reading timestamp age
-    const realTimeStatus = calculateDeviceStatus(device.lastSeenAt);
-    if (realTimeStatus !== device.status) {
-      await prisma.device.update({
-        where: { id: device.id },
-        data: { status: realTimeStatus },
-      });
-      device.status = realTimeStatus;
     }
 
     const hasSync = device.lastSeenAt !== null;

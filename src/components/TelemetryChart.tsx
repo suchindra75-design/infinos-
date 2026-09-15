@@ -20,6 +20,15 @@ interface SeriesDef {
   getValue: (r: SensorReading) => number | null;
 }
 
+const toFiniteNumber = (value: unknown): number | null => {
+  if (typeof value === 'number') return Number.isFinite(value) ? value : null;
+  if (typeof value === 'string' && value.trim() !== '') {
+    const parsed = Number(value);
+    return Number.isFinite(parsed) ? parsed : null;
+  }
+  return null;
+};
+
 const COLOR_PALETTE = [
   '#00a3ff', // blue
   '#ff6b00', // orange
@@ -77,8 +86,7 @@ export const TelemetryChart: React.FC<TelemetryChartProps> = ({
           gradientId: `gradient_${m.fieldKey}`,
           getValue: (r: SensorReading) => {
             if (r.fieldValues && r.fieldValues[m.fieldKey] !== undefined && r.fieldValues[m.fieldKey] !== null) {
-              const val = r.fieldValues[m.fieldKey];
-              return typeof val === 'number' && Number.isFinite(val) ? val : null;
+              return toFiniteNumber(r.fieldValues[m.fieldKey]);
             }
             if (m.zone === 'cold') return r.coldTemperature;
             if (m.zone === 'hot') return r.hotTemperature;
@@ -96,7 +104,7 @@ export const TelemetryChart: React.FC<TelemetryChartProps> = ({
         Object.keys(r.fieldValues).forEach((k) => {
           if (k.startsWith('field')) {
             const v = r.fieldValues![k];
-            if (v !== null && v !== undefined && typeof v === 'number' && Number.isFinite(v)) {
+            if (toFiniteNumber(v) !== null) {
               activeFieldKeys.add(k);
             }
           }
@@ -117,7 +125,7 @@ export const TelemetryChart: React.FC<TelemetryChartProps> = ({
           gradientId: `gradient_${key}`,
           getValue: (r: SensorReading) => {
             const val = r.fieldValues?.[key];
-            return typeof val === 'number' && Number.isFinite(val) ? val : null;
+            return toFiniteNumber(val);
           },
         };
       });
@@ -310,7 +318,7 @@ export const TelemetryChart: React.FC<TelemetryChartProps> = ({
 
           {/* Time Range Selector */}
           <div className="flex items-center bg-[#07080a] p-0.5 rounded-lg border border-white/[0.08] text-[11px] sm:text-xs font-body">
-            {(['1h', '6h', '24h', '7d'] as const).map((range) => (
+            {(['all', '1h', '6h', '24h', '7d'] as const).map((range) => (
               <button
                 key={range}
                 onClick={() => onChangeTimeRange(range)}

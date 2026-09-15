@@ -14,6 +14,7 @@ export function getPrismaClient(): PrismaClient {
         (arg) =>
           arg.includes('tests/') &&
           !arg.includes('part6-unit') &&
+          !arg.includes('telemetry-regression') &&
           !arg.includes('export.test') &&
           !arg.includes('archive-unit') &&
           !arg.includes('test-guard')

@@ -1,4 +1,5 @@
 import crypto from 'node:crypto';
+import { DeviceStatus } from '@prisma/client';
 import { prisma } from '../config/database.js';
 import { env } from '../config/env.js';
 import { thingspeakService } from './thingspeak.service.js';
@@ -143,8 +144,10 @@ export class DeviceSyncService {
         }
       }
 
-      // Calculate new connectivity status based on age of latest actual reading
-      const newStatus = calculateDeviceStatus(newestRecordedAt);
+      // A successful ThingSpeak request proves this channel is reachable.  It must
+      // not be downgraded just because every returned feed was already archived:
+      // `lastSeenAt` is the sensor timestamp, not a connectivity heartbeat.
+      const newStatus = DeviceStatus.ONLINE;
 
       // Update device lastSeenAt and status in PostgreSQL
       await prisma.device.update({

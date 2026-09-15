@@ -320,11 +320,17 @@ async function runSyncTests() {
     const repeatSync = await deviceSyncService.syncDevice(bagA.id);
     assert.strictEqual(repeatSync.success, true);
     assert.strictEqual(repeatSync.newReadingsCount, 0, 'No new duplicate rows should be inserted');
+    // The newest sensor sample is intentionally several minutes old here.  A
+    // successful poll still proves channel connectivity, so deduplication must
+    // not turn a reachable device offline merely because no row was inserted.
+    assert.strictEqual(repeatSync.status, DeviceStatus.ONLINE);
 
     const bagAReadingsAfterRepeat = await prisma.sensorReading.count({
       where: { deviceId: bagA.id },
     });
     assert.strictEqual(bagAReadingsAfterRepeat, 20, 'Count must remain 20 after duplicate sync run');
+    const bagAAfterRepeat = await prisma.device.findUnique({ where: { id: bagA.id } });
+    assert.strictEqual(bagAAfterRepeat?.status, DeviceStatus.ONLINE);
     console.log('✓ Test 3 passed: Deduplication prevents duplicate rows on repeated sync.');
 
     // TEST 4: Incremental Sync with New Feeds

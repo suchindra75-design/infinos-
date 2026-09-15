@@ -43,7 +43,9 @@ const DashboardContent: React.FC = () => {
   const [alertsScope, setAlertsScope] = useState<'device' | 'all'>('device');
 
   // Chart & Controls States
-  const [timeRange, setTimeRange] = useState<string>('24h');
+  // Opening a device must expose retained PostgreSQL history, including data
+  // older than the current live polling window.
+  const [timeRange, setTimeRange] = useState<string>('all');
   const [refreshInterval, setRefreshInterval] = useState<number>(15); // default 15s
   const [lastRefreshed, setLastRefreshed] = useState<Date | null>(null);
 
@@ -131,7 +133,7 @@ const DashboardContent: React.FC = () => {
     // Calculate time range parameters
     let from: string | undefined;
     const now = new Date();
-    let limit = 100;
+    let limit = 1000;
 
     if (timeRange === '1h') {
       from = new Date(now.getTime() - 60 * 60 * 1000).toISOString();
