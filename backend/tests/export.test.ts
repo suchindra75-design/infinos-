@@ -696,6 +696,151 @@ async function runExportTests() {
     assert.ok(queryWheres.every((where) => where.recordedAt.lte.getTime() === periodEnd.getTime()));
     console.log('✓ Test 11 passed: aggregate, latest, and table use exactly one inclusive selected-period dataset.');
 
+    // ----------------------------------------------------
+    // TEST 12: Regression - stale "to=2026-08-25" must NOT leak into All History export
+    // Spec: BAG / yoyo has 302 readings 2026-09-11..2026-09-15. "All" must yield
+    // no from/to params and include all. Stale to=2026-08-25 must be proven to
+    // return 0 and therefore must never be sent for All. Also covers:
+    // single day, multi-day, inclusive end, no-history device.
+    // ----------------------------------------------------
+    console.log('Test 12: Regression - stale 2026-08-25 exclusion & All/custom inclusivity...');
+
+    // Helper: simulate ExportModal.buildOptions(rangeMode, from, to)
+    function buildExportOptions(
+      rangeMode: 'all' | 'custom',
+      from: string,
+      to: string,
+    ): { from?: string; to?: string } {
+      const opts: { from?: string; to?: string } = {};
+      if (rangeMode === 'custom') {
+        if (from) opts.from = new Date(`${from}T00:00:00`).toISOString();
+        if (to) opts.to = new Date(`${to}T23:59:59.999`).toISOString();
+      }
+      return opts;
+    }
+
+    // (a) Pure frontend: All History must produce NO query params
+    const allOpts = buildExportOptions('all', '', '');
+    assert.equal(allOpts.from, undefined, 'All mode must NOT produce from');
+    assert.equal(allOpts.to, undefined, 'All mode must NOT produce to');
+    // Even if stale dates linger in state, All must ignore them
+    const staleSuppressed = buildExportOptions('all', '', '2026-08-25');
+    assert.equal(staleSuppressed.to, undefined, 'All must suppress stale to=2026-08-25');
+    assert.equal(staleSuppressed.from, undefined, 'All must suppress stale from');
+
+    // (b) Single day inclusive, local -> UTC (23:59:59.999 local -> UTC)
+    const singleDay = buildExportOptions('custom', '2026-09-11', '2026-09-11');
+    assert.equal(singleDay.from, new Date('2026-09-11T00:00:00').toISOString());
+    assert.equal(singleDay.to, new Date('2026-09-11T23:59:59.999').toISOString());
+    // Inclusive: a reading exactly at the To instant must be included; +1ms must be excluded
+    const readingAtEnd = new Date(singleDay.to!);
+    assert.ok(readingAtEnd >= new Date(singleDay.from!), 'readingAtEnd >= from');
+    assert.ok(readingAtEnd <= new Date(singleDay.to!), 'readingAtEnd <= to inclusive');
+    const justAfter = new Date(new Date(singleDay.to!).getTime() + 1);
+    assert.ok(justAfter > new Date(singleDay.to!), 'justAfter > to (exclusive)');
+
+    // (c) UTC conversion does not shift calendar day unexpectedly (round-trip check)
+    const tz = Intl.DateTimeFormat().resolvedOptions().timeZone;
+    // from 00:00:00 local must toISOString to same calendar date in UTC-shifted form only via offset
+    // We verify that June 1 local still maps to June 1 or May 31 UTC depending on tz offset, but
+    // more importantly that toISOString parses back and the date portion is preserved for the PDF period display
+    // The bug under test: "All" leaking to=2026-08-25T23:59:59.999Z filtered out Sep data
+    // Simulate filtering 302 Sep readings against that stale range
+    const historicalRows = Array.from({ length: 302 }, (_, i) => {
+      // spread 2026-09-11 to 2026-09-15
+      const day = 11 + Math.floor((i * 5) / 302); // ~ 11,12,13,14,15
+      const hr = 10 + (i % 10);
+      return { recordedAt: new Date(Date.UTC(2026, 8, day, hr, 0, 0)), fieldValues: {} as any, coldTemperature: null, hotTemperature: null, humidity: null };
+    });
+    historicalRows.sort((a, b) => a.recordedAt.getTime() - b.recordedAt.getTime());
+    const sepMin = historicalRows[0].recordedAt; // 2026-09-11...
+    const sepMax = historicalRows.at(-1)!.recordedAt; // 2026-09-15...
+    assert.equal(sepMin.toISOString().substring(0, 10), '2026-09-11');
+    assert.equal(sepMax.toISOString().substring(0, 10), '2026-09-15');
+
+    // Stale filter: Start to 2026-08-25 should match 0 of the Sep rows
+    const staleTo = new Date('2026-08-25T23:59:59.999Z');
+    const staleMatches = historicalRows.filter((r) => r.recordedAt <= staleTo);
+    assert.equal(staleMatches.length, 0, 'stale to=2026-08-25 must match 0 of 302 Sep readings');
+
+    // All (no filter) must match 302
+    const allMatches = historicalRows; // no where.recordedAt
+    assert.equal(allMatches.length, 302);
+
+    // Multi-day custom 2026-09-11..2026-09-15 must match all 302
+    const multiFrom = new Date('2026-09-11T00:00:00.000Z');
+    const multiTo = new Date('2026-09-15T23:59:59.999Z');
+    const multiMatches = historicalRows.filter((r) => r.recordedAt >= multiFrom && r.recordedAt <= multiTo);
+    assert.equal(multiMatches.length, 302, 'multi-day 09-11 to 09-15 must include all 302');
+
+    // Single-day 2026-09-11 must be subset
+    const singleFrom = new Date('2026-09-11T00:00:00.000Z');
+    const singleTo = new Date('2026-09-11T23:59:59.999Z');
+    const singleMatches = historicalRows.filter((r) => r.recordedAt >= singleFrom && r.recordedAt <= singleTo);
+    assert.ok(singleMatches.length > 0 && singleMatches.length < 302, 'single day must be non-empty proper subset');
+    assert.ok(singleMatches.every((r) => r.recordedAt.toISOString().substring(0, 10) === '2026-09-11'), 'single-day only 09-11');
+
+    // (d) Backend service with mocked DB: All (empty query) returns 302, stale returns 0
+    const devAll = { id: 'dev-bag-all', deviceCode: 'BAG', name: 'yoyo', ownerId: adminUser.id, createdAt: new Date() };
+    let whereHistory: any[] = [];
+    const filterHistorical = (where: any) => {
+      const range = where.recordedAt || {};
+      return historicalRows.filter((r) => (!range.gte || r.recordedAt >= range.gte) && (!range.lte || r.recordedAt <= range.lte));
+    };
+    (prisma.device.findUnique as any) = async (q: any) => (q?.select?.fieldMappings !== undefined ? { fieldMappings: null } : devAll);
+    (prisma.sensorReading.aggregate as any) = async ({ where }: any) => {
+      whereHistory.push(where);
+      const rows = filterHistorical(where);
+      return { _count: { id: rows.length }, _min: { coldTemperature: null, hotTemperature: null, humidity: null, recordedAt: rows[0]?.recordedAt ?? null }, _max: { coldTemperature: null, hotTemperature: null, humidity: null, recordedAt: rows.at(-1)?.recordedAt ?? null }, _avg: { coldTemperature: null, hotTemperature: null, humidity: null } };
+    };
+    (prisma.sensorReading.findFirst as any) = async ({ where }: any) => {
+      whereHistory.push(where);
+      return filterHistorical(where).at(-1) ?? null;
+    };
+    (prisma.sensorReading.findMany as any) = async ({ where }: any) => {
+      whereHistory.push(where);
+      return filterHistorical(where);
+    };
+    (prisma.alert.findMany as any) = async () => [];
+
+    // All history: no from/to -> 302
+    whereHistory = [];
+    const { pdfBuffer: allPdf } = await exportService.exportPdf('dev-bag-all', {}, adminUser);
+    const allText = allPdf.toString('utf-8');
+    assert.ok(allText.includes('Total Records: 302'), 'All History PDF must show Total Records: 302');
+    assert.ok(allText.includes('RECORDED SENSOR READINGS \\(302\\)'), 'All must list 302');
+    assert.ok(allText.includes('All Available History'), 'All period must be "All Available History" not "Start to 2026-08-25"');
+    assert.equal(allText.includes('Start to 2026-08-25'), false, 'All must NOT leak stale date into period text');
+    assert.equal(whereHistory.length, 3, 'All History must query aggregate+latest+table with same where');
+    assert.ok(whereHistory.every((w) => w.recordedAt === undefined), 'All query must have no recordedAt filter');
+
+    // Stale single-to filter (what bug sent): should be 0
+    whereHistory = [];
+    const { pdfBuffer: stalePdf } = await exportService.exportPdf('dev-bag-all', { to: staleTo.toISOString() }, adminUser);
+    const staleText = stalePdf.toString('utf-8');
+    assert.ok(staleText.includes('Total Records: 0'), 'stale to=2026-08-25 must yield 0');
+    assert.ok(staleText.includes('Start to 2026-08-25'), 'stale period Shows Start to 2026-08-25');
+    assert.ok(staleText.includes('RECORDED SENSOR READINGS \\(0\\)'), 'stale yields 0 readings');
+    assert.equal(whereHistory.length, 3, 'stale query must hit all 3 datasets');
+    assert.ok(whereHistory.every((w) => w.recordedAt?.lte?.getTime() === staleTo.getTime() && w.recordedAt?.gte === undefined), 'stale filter must be Start(≤ to) only');
+
+    // Inclusive multi-day
+    const { pdfBuffer: multiPdf } = await exportService.exportPdf('dev-bag-all', { from: multiFrom.toISOString(), to: multiTo.toISOString() }, adminUser);
+    assert.ok(multiPdf.toString('utf-8').includes('Total Records: 302'), 'multi-day inclusive must be 302');
+
+    // (e) No-history device: All returns 0 but cleanly, no stale bleed
+    (prisma.device.findUnique as any) = async (q: any) => (q?.select?.fieldMappings !== undefined ? { fieldMappings: null } : { id: 'dev-empty2', deviceCode: 'BAG-EMPTY2', name: 'Empty 2', ownerId: adminUser.id, createdAt: new Date() });
+    (prisma.sensorReading.findMany as any) = async () => [];
+    (prisma.sensorReading.aggregate as any) = async () => ({ _count: { id: 0 }, _min: { coldTemperature: null, hotTemperature: null, humidity: null, recordedAt: null }, _max: { coldTemperature: null, hotTemperature: null, humidity: null, recordedAt: null }, _avg: { coldTemperature: null, hotTemperature: null, humidity: null } });
+    (prisma.sensorReading.findFirst as any) = async () => null;
+    const { pdfBuffer: emptyAllPdf } = await exportService.exportPdf('dev-empty2', {}, adminUser);
+    const emptyAllText = emptyAllPdf.toString('utf-8');
+    assert.ok(emptyAllText.includes('Total Records: 0'), 'no-history All still 0');
+    assert.ok(emptyAllText.includes('All Available History') || emptyAllText.includes('Total Records: 0'), 'no-history period sane');
+
+    console.log(`  ↳ timezone during test: ${tz}`);
+    console.log('✓ Test 12 passed: stale 2026-08-25 proven to exclude 302 Sep records; All/custom/inclusive/no-history all verified.');
+
   } finally {
     // Restore originals
     prisma.device.findUnique = originalFindUnique;

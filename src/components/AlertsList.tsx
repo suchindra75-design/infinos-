@@ -105,7 +105,7 @@ export const AlertsList: React.FC<AlertsListProps> = ({
           <div className="flex items-center bg-[#07080a] p-0.5 rounded-lg border border-white/[0.08] text-[11px] sm:text-xs">
             <button
               onClick={() => onChangeFilterScope('device')}
-              className={`px-2 sm:px-2.5 py-1 rounded font-medium transition cursor-pointer ${
+              className={`px-2 sm:px-2.5 py-1 rounded font-medium transition-[transform,background-color,color] duration-[var(--dur-fast)] ease-[var(--ease-out)] active:scale-[0.96] cursor-pointer ${
                 filterScope === 'device'
                   ? 'bg-zinc-800 text-white font-semibold'
                   : 'text-zinc-400 hover:text-zinc-200'
@@ -115,7 +115,7 @@ export const AlertsList: React.FC<AlertsListProps> = ({
             </button>
             <button
               onClick={() => onChangeFilterScope('all')}
-              className={`px-2 sm:px-2.5 py-1 rounded font-medium transition cursor-pointer ${
+              className={`px-2 sm:px-2.5 py-1 rounded font-medium transition-[transform,background-color,color] duration-[var(--dur-fast)] ease-[var(--ease-out)] active:scale-[0.96] cursor-pointer ${
                 filterScope === 'all'
                   ? 'bg-zinc-800 text-white font-semibold'
                   : 'text-zinc-400 hover:text-zinc-200'
@@ -165,7 +165,7 @@ export const AlertsList: React.FC<AlertsListProps> = ({
           {filteredAlerts.map((alert) => (
             <div
               key={alert.id}
-              className={`p-3 rounded-xl border transition-all duration-300 animate-alert-enter flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 ${
+              className={`p-3 rounded-xl border transition-[background-color,border-color,opacity] duration-[var(--dur-base)] ease-[var(--ease-out)] animate-alert-enter flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 ${
                 alert.isResolved
                   ? 'bg-[#0a0b0e] border-white/[0.06] opacity-75'
                   : alert.severity === 'CRITICAL'
@@ -174,19 +174,19 @@ export const AlertsList: React.FC<AlertsListProps> = ({
               }`}
             >
               {/* Alert Content */}
-              <div className="space-y-1.5 min-w-0 flex-1">
-                <div className="flex flex-wrap items-center gap-1.5 sm:gap-2">
+              <div className="space-y-1.5 min-w-0 flex-1 overflow-hidden">
+                <div className="flex flex-wrap items-center gap-1.5 sm:gap-2 min-w-0">
                   {getSeverityBadge(alert.severity)}
                   {alert.device && (
-                    <span className="text-[10px] sm:text-xs font-data font-medium text-zinc-300 bg-[#07080a] px-1.5 py-0.5 rounded border border-white/[0.06]">
+                    <span className="text-[10px] sm:text-xs font-data font-medium text-zinc-300 bg-[#07080a] px-1.5 py-0.5 rounded border border-white/[0.06] truncate max-w-[120px]" title={alert.device.deviceCode}>
                       [{alert.device.deviceCode}]
                     </span>
                   )}
-                  <span className="text-xs font-semibold text-zinc-200 font-body">
+                  <span className="text-xs font-semibold text-zinc-200 font-body truncate">
                     {alert.type.replace(/_/g, ' ')}
                   </span>
                   {alert.isResolved ? (
-                    <span className="inline-flex items-center gap-1 text-[9px] text-emerald-400 bg-emerald-500/10 px-1.5 py-0.5 rounded-full border border-emerald-500/30 font-bold uppercase transition-all duration-300">
+                    <span className="inline-flex items-center gap-1 text-[9px] text-emerald-400 bg-emerald-500/10 px-1.5 py-0.5 rounded-full border border-emerald-500/30 font-bold uppercase transition-[background-color,border-color,color] duration-[var(--dur-base)] ease-[var(--ease-out)]">
                       <Check className="w-2.5 h-2.5" /> Resolved
                     </span>
                   ) : (
@@ -196,7 +196,7 @@ export const AlertsList: React.FC<AlertsListProps> = ({
                   )}
                 </div>
 
-                <p className="text-xs text-zinc-300 font-body leading-relaxed">{alert.message}</p>
+                <p className="text-xs text-zinc-300 font-body leading-relaxed line-clamp-3">{alert.message}</p>
 
                 <div className="flex flex-wrap items-center gap-2 sm:gap-3 text-[10px] text-zinc-500 font-body">
                   <span className="flex items-center gap-1">
@@ -223,7 +223,7 @@ export const AlertsList: React.FC<AlertsListProps> = ({
                     <button
                       onClick={() => handleResolve(alert.id)}
                       disabled={resolvingId === alert.id}
-                      className="w-full sm:w-auto inline-flex items-center justify-center gap-1.5 px-3.5 py-2 text-xs font-semibold rounded-lg bg-emerald-500/15 hover:bg-emerald-500/25 text-emerald-300 border border-emerald-500/30 transition disabled:opacity-50 cursor-pointer min-h-[38px]"
+                      className="w-full sm:w-auto inline-flex items-center justify-center gap-1.5 px-3.5 py-2 text-xs font-semibold rounded-lg bg-emerald-500/15 hover:bg-emerald-500/25 text-emerald-300 border border-emerald-500/30 active:scale-[0.97] transition-[transform,background-color,border-color,opacity] duration-[var(--dur-fast)] ease-[var(--ease-out)] disabled:opacity-50 cursor-pointer min-h-[38px]"
                     >
                       <Check className="w-3.5 h-3.5" />
                       <span>{resolvingId === alert.id ? 'Resolving...' : 'Resolve Alert'}</span>

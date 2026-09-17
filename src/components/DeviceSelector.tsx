@@ -49,7 +49,7 @@ export const DeviceSelector: React.FC<DeviceSelectorProps> = ({
       case 'ONLINE':
         return (
           <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-500/10 text-emerald-400 border border-emerald-500/30 shrink-0">
-            <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+            <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-live-blink" />
             ONLINE
           </span>
         );
@@ -85,7 +85,7 @@ export const DeviceSelector: React.FC<DeviceSelectorProps> = ({
           {isAuthenticated && (user?.role === 'ADMIN' || user?.role === 'OPERATOR') ? (
             <button
               onClick={onOpenAddDevice}
-              className="inline-flex items-center gap-2 px-4 sm:px-5 py-2 text-xs sm:text-sm font-semibold rounded-full bg-gradient-to-r from-[#ff6b00] to-[#e05e00] hover:from-[#ff7d1a] hover:to-[#eb6405] text-white transition shadow-md shadow-orange-500/20 cursor-pointer min-h-[40px]"
+              className="inline-flex items-center gap-2 px-4 sm:px-5 py-2 text-xs sm:text-sm font-semibold rounded-full bg-gradient-to-r from-[#ff6b00] to-[#e05e00] hover:from-[#ff7d1a] hover:to-[#eb6405] text-white transition-[transform,box-shadow,background-color] duration-[var(--dur-base)] ease-[var(--ease-out)] active:scale-[0.97] active:shadow-none shadow-md shadow-orange-500/20 cursor-pointer min-h-[40px]"
             >
               <Plus className="w-4 h-4" />
               <span>Claim Smart Bag</span>
@@ -121,7 +121,7 @@ export const DeviceSelector: React.FC<DeviceSelectorProps> = ({
               if (dev) onSelectDevice(dev);
             }}
             disabled={isLoading || devices.length === 0}
-            className="w-full bg-[#07080a] text-zinc-100 border border-white/[0.1] hover:border-white/[0.2] rounded-lg px-3 py-2 sm:py-1.5 text-xs sm:text-sm font-medium font-body focus:outline-none focus:border-orange-500 transition appearance-none cursor-pointer pr-8 min-h-[40px] sm:min-h-[36px]"
+            className="w-full bg-[#07080a] text-zinc-100 border border-white/[0.1] hover:border-white/[0.2] rounded-lg px-3 py-2 sm:py-1.5 text-xs sm:text-sm font-medium font-body focus:outline-none focus:border-orange-500 transition-[border-color] duration-[var(--dur-fast)] ease-[var(--ease-out)] appearance-none cursor-pointer pr-8 min-h-[40px] sm:min-h-[36px]"
           >
             {devices.map((device) => (
               <option key={device.id} value={device.id}>
@@ -135,9 +135,9 @@ export const DeviceSelector: React.FC<DeviceSelectorProps> = ({
         </div>
 
         {selectedDevice && (
-          <div className="hidden sm:flex items-center gap-2 shrink-0">
+          <div className="hidden sm:flex items-center gap-2 shrink-0 min-w-0">
             {getStatusBadge(selectedDevice)}
-            <span className="text-xs text-zinc-500 hidden xl:inline font-body">
+            <span className="text-xs text-zinc-500 hidden xl:inline font-body truncate max-w-[160px]">
               Channel: <span className="font-data text-zinc-300 font-normal">{selectedDevice.thingSpeakChannelId}</span>
             </span>
           </div>
@@ -149,7 +149,7 @@ export const DeviceSelector: React.FC<DeviceSelectorProps> = ({
         <div className="grid grid-cols-2 sm:grid-cols-3 md:flex items-center gap-2 w-full md:w-auto pt-2.5 md:pt-0 border-t md:border-t-0 border-white/[0.06]">
           <button
             onClick={onOpenExport}
-            className="inline-flex items-center justify-center gap-1.5 px-3 py-2 sm:py-1.5 text-xs font-medium rounded-lg bg-[#14171d] hover:bg-[#1a1e27] text-zinc-300 border border-white/[0.08] hover:border-orange-500/30 transition cursor-pointer min-h-[40px] sm:min-h-[36px]"
+            className="inline-flex items-center justify-center gap-1.5 px-3 py-2 sm:py-1.5 text-xs font-medium rounded-lg bg-[#14171d] hover:bg-[#1a1e27] text-zinc-300 border border-white/[0.08] hover:border-orange-500/30 active:scale-[0.97] transition-[transform,background-color,border-color,color] duration-[var(--dur-fast)] ease-[var(--ease-out)] cursor-pointer min-h-[40px] sm:min-h-[36px]"
             title="Download CSV or PDF audit telemetry reports"
           >
             <Download className="w-3.5 h-3.5 text-orange-400 shrink-0" />
@@ -160,7 +160,7 @@ export const DeviceSelector: React.FC<DeviceSelectorProps> = ({
             <>
               <button
                 onClick={onOpenSettings}
-                className="inline-flex items-center justify-center gap-1.5 px-3 py-2 sm:py-1.5 text-xs font-medium rounded-lg bg-[#14171d] hover:bg-[#1a1e27] text-zinc-300 border border-white/[0.08] hover:border-orange-500/30 transition cursor-pointer min-h-[40px] sm:min-h-[36px]"
+                className="inline-flex items-center justify-center gap-1.5 px-3 py-2 sm:py-1.5 text-xs font-medium rounded-lg bg-[#14171d] hover:bg-[#1a1e27] text-zinc-300 border border-white/[0.08] hover:border-orange-500/30 active:scale-[0.97] transition-[transform,background-color,border-color,color] duration-[var(--dur-fast)] ease-[var(--ease-out)] cursor-pointer min-h-[40px] sm:min-h-[36px]"
                 title="Configure compartment temperature and humidity thresholds"
               >
                 <SlidersHorizontal className="w-3.5 h-3.5 text-zinc-400 shrink-0" />
@@ -169,7 +169,7 @@ export const DeviceSelector: React.FC<DeviceSelectorProps> = ({
 
               <button
                 onClick={onOpenRemoveDevice}
-                className="inline-flex items-center justify-center gap-1.5 px-3 py-2 sm:py-1.5 text-xs font-medium rounded-lg bg-[#14171d] hover:bg-rose-950/40 text-zinc-300 hover:text-rose-300 border border-white/[0.08] hover:border-rose-500/40 transition cursor-pointer min-h-[40px] sm:min-h-[36px]"
+                className="inline-flex items-center justify-center gap-1.5 px-3 py-2 sm:py-1.5 text-xs font-medium rounded-lg bg-[#14171d] hover:bg-rose-950/40 text-zinc-300 hover:text-rose-300 border border-white/[0.08] hover:border-rose-500/40 active:scale-[0.97] transition-[transform,background-color,border-color,color] duration-[var(--dur-fast)] ease-[var(--ease-out)] cursor-pointer min-h-[40px] sm:min-h-[36px]"
                 title="Remove or archive this Smart Delivery Bag"
               >
                 <Trash2 className="w-3.5 h-3.5 text-rose-400 shrink-0" />
@@ -182,4 +182,3 @@ export const DeviceSelector: React.FC<DeviceSelectorProps> = ({
     </div>
   );
 };
-

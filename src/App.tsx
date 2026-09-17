@@ -1,5 +1,4 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { LogIn, Plus, LayoutDashboard, Cpu, BarChart2, AlertTriangle, Radio, SlidersHorizontal, Download, ArrowRight } from 'lucide-react';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { api } from './api/client';
 import {
@@ -7,29 +6,77 @@ import {
   AnalyticsSummary,
   SensorReading,
   DeviceStatusResponse,
-  Alert,
+  Alert as AlertType,
   DeviceSettings,
 } from './types';
 import { Header, NavTab } from './components/Header';
-import { DeviceSelector } from './components/DeviceSelector';
+import { MobileBottomNav } from './components/MobileBottomNav';
+import { StatCard } from './components/StatCard';
+import { DeviceCard } from './components/DeviceCard';
 import { LiveTelemetryCard } from './components/LiveTelemetryCard';
-import { AnalyticsSummarySection } from './components/AnalyticsSummarySection';
 import { TelemetryChart } from './components/TelemetryChart';
+import { AnalyticsSummarySection } from './components/AnalyticsSummarySection';
 import { AlertsList } from './components/AlertsList';
+import { motion } from 'framer-motion';
+import { AddDeviceModal } from './components/AddDeviceModal';
+import { ConfirmModal } from './components/ConfirmModal';
+import { AuthModal } from './components/AuthModal';
 import { SettingsModal } from './components/SettingsModal';
 import { ExportModal } from './components/ExportModal';
-import { AddDeviceModal } from './components/AddDeviceModal';
-import { RemoveDeviceModal } from './components/RemoveDeviceModal';
-import { StatusBanner } from './components/StatusBanner';
-import { AuthModal } from './components/AuthModal';
+
+const EASE_OUT = [0.16, 1, 0.3, 1];
+
+const getGridStaggerVariants = (count: number) => {
+  const staggerDelay = Math.min(0.035, 0.40 / Math.max(1, count));
+  return {
+    hidden: { opacity: 0 },
+    show: {
+      opacity: 1,
+      transition: {
+        staggerChildren: staggerDelay,
+      },
+    },
+  };
+};
+
+const cardItemVariants = {
+  hidden: { opacity: 0, y: 6 },
+  show: {
+    opacity: 1,
+    y: 0,
+    transition: {
+      duration: 0.32, // --dur-slow (320ms)
+      ease: EASE_OUT,
+    },
+  },
+};
 
 const DashboardContent: React.FC = () => {
   const { isAuthenticated, user, isLoading: isAuthLoading } = useAuth();
 
-  // Navigation State
+  // Theme State
+  const [isLightMode, setIsLightMode] = useState<boolean>(() => {
+    const saved = localStorage.getItem('infinos_theme');
+    if (saved) return saved === 'light';
+    return !window.matchMedia('(prefers-color-scheme: dark)').matches;
+  });
+
+  useEffect(() => {
+    if (isLightMode) {
+      document.documentElement.classList.add('light');
+      localStorage.setItem('infinos_theme', 'light');
+    } else {
+      document.documentElement.classList.remove('light');
+      localStorage.setItem('infinos_theme', 'dark');
+    }
+  }, [isLightMode]);
+
+  const toggleTheme = () => setIsLightMode((prev) => !prev);
+
+  // Navigation Tab State
   const [activeNavTab, setActiveNavTab] = useState<NavTab>('dashboard');
 
-  // Fleet and Device States
+  // Fleet & Device States
   const [devices, setDevices] = useState<SafeDevice[]>([]);
   const [selectedDevice, setSelectedDevice] = useState<SafeDevice | null>(null);
   const [isLoadingDevices, setIsLoadingDevices] = useState<boolean>(false);
@@ -39,20 +86,13 @@ const DashboardContent: React.FC = () => {
   const [statusInfo, setStatusInfo] = useState<DeviceStatusResponse | null>(null);
   const [timeseries, setTimeseries] = useState<SensorReading[]>([]);
   const [settings, setSettings] = useState<DeviceSettings | null>(null);
-  const [alerts, setAlerts] = useState<Alert[]>([]);
+  const [alerts, setAlerts] = useState<AlertType[]>([]);
   const [alertsScope, setAlertsScope] = useState<'device' | 'all'>('device');
 
-  // Chart & Controls States
-  // Opening a device must expose retained PostgreSQL history, including data
-  // older than the current live polling window.
+  // Controls & Refreshing
   const [timeRange, setTimeRange] = useState<string>('all');
-  const [refreshInterval, setRefreshInterval] = useState<number>(15); // default 15s
-  const [lastRefreshed, setLastRefreshed] = useState<Date | null>(null);
-
-  // Loading & Error States
+  const [isRefreshing, setIsRefreshing] = useState<boolean>(false);
   const [isTelemetryLoading, setIsTelemetryLoading] = useState<boolean>(false);
-  const [isSyncing, setIsSyncing] = useState<boolean>(false);
-  const [backendConnected, setBackendConnected] = useState<boolean>(true);
   const [telemetryError, setTelemetryError] = useState<string | null>(null);
   const [timeseriesError, setTimeseriesError] = useState<string | null>(null);
 
@@ -61,16 +101,16 @@ const DashboardContent: React.FC = () => {
   const [isAddDeviceOpen, setIsAddDeviceOpen] = useState<boolean>(false);
   const [isSettingsOpen, setIsSettingsOpen] = useState<boolean>(false);
   const [isExportOpen, setIsExportOpen] = useState<boolean>(false);
-  const [isRemoveDeviceOpen, setIsRemoveDeviceOpen] = useState<boolean>(false);
+  const [deviceToDelete, setDeviceToDelete] = useState<SafeDevice | null>(null);
 
-  // Request guards to prevent duplicate/overlapping fetches
+  // Request Guards
   const isFetchingRef = useRef<boolean>(false);
   const isFetchingDevicesRef = useRef<boolean>(false);
 
   // Count active alerts
   const activeAlertsCount = alerts.filter((a) => !a.isResolved).length;
 
-  // Automatically show auth UI when unauthenticated
+  // Prompt Auth when unauthenticated
   useEffect(() => {
     if (!isAuthLoading && !isAuthenticated) {
       setIsAuthOpen(true);
@@ -79,7 +119,7 @@ const DashboardContent: React.FC = () => {
     }
   }, [isAuthLoading, isAuthenticated]);
 
-  // Fetch registered devices list with strict auth check and deduplication
+  // Fetch Devices list
   const fetchDevices = useCallback(async () => {
     if (!isAuthenticated) {
       setDevices([]);
@@ -95,9 +135,8 @@ const DashboardContent: React.FC = () => {
     try {
       const list = await api.devices.list();
       setDevices(list);
-      setBackendConnected(true);
 
-      // Maintain selection or select first
+      // Maintain selection or auto-select first
       if (list.length > 0) {
         setSelectedDevice((prev) => {
           if (prev && list.some((d) => d.id === prev.id)) {
@@ -109,9 +148,6 @@ const DashboardContent: React.FC = () => {
         setSelectedDevice(null);
       }
     } catch (err: any) {
-      if (err.code === 'NETWORK_ERROR' || err.status === 502 || err.status === 503) {
-        setBackendConnected(false);
-      }
       setDevices([]);
       setSelectedDevice(null);
     } finally {
@@ -130,7 +166,6 @@ const DashboardContent: React.FC = () => {
     setTelemetryError(null);
     setTimeseriesError(null);
 
-    // Calculate time range parameters
     let from: string | undefined;
     const now = new Date();
     let limit = 1000;
@@ -150,7 +185,6 @@ const DashboardContent: React.FC = () => {
     }
 
     try {
-      // Parallel requests for all telemetry facets
       const [summaryRes, statusRes, timeseriesRes, settingsRes, alertsRes] = await Promise.allSettled([
         api.analytics.getSummary(device.id, from ? { from } : undefined),
         api.devices.getStatus(device.id),
@@ -160,8 +194,6 @@ const DashboardContent: React.FC = () => {
           ? api.alerts.listDeviceAlerts(device.id)
           : api.alerts.list({ limit: 50 }),
       ]);
-
-      setBackendConnected(true);
 
       if (summaryRes.status === 'fulfilled') {
         setSummary(summaryRes.value);
@@ -186,34 +218,20 @@ const DashboardContent: React.FC = () => {
       if (alertsRes.status === 'fulfilled') {
         setAlerts(alertsRes.value.alerts);
       }
-
-      setLastRefreshed(new Date());
     } catch (err: any) {
-      if (err.code === 'NETWORK_ERROR') {
-        setBackendConnected(false);
-      }
+      // Handle fetch error
     } finally {
       if (!silent) setIsTelemetryLoading(false);
       isFetchingRef.current = false;
     }
   }, [isAuthenticated, timeRange, alertsScope]);
 
-  // Load devices only when authentication has been confirmed
   useEffect(() => {
-    if (isAuthLoading) {
-      return;
-    }
-
-    if (isAuthenticated) {
+    if (!isAuthLoading && isAuthenticated) {
       fetchDevices();
-    } else {
-      setDevices([]);
-      setSelectedDevice(null);
-      setIsLoadingDevices(false);
     }
   }, [isAuthLoading, isAuthenticated, fetchDevices]);
 
-  // Load telemetry when selected device or time range changes
   useEffect(() => {
     if (isAuthenticated && selectedDevice) {
       fetchDeviceData(selectedDevice, false);
@@ -225,33 +243,49 @@ const DashboardContent: React.FC = () => {
     }
   }, [isAuthenticated, selectedDevice, fetchDeviceData]);
 
-  // Auto-refresh interval effect
+  // Live polling (15s interval for active bag)
   useEffect(() => {
-    if (!isAuthenticated || !refreshInterval || refreshInterval <= 0 || !selectedDevice) return;
+    if (!isAuthenticated || !selectedDevice) return;
 
     const intervalId = setInterval(() => {
       fetchDeviceData(selectedDevice, true);
-    }, refreshInterval * 1000);
+    }, 15000);
 
     return () => clearInterval(intervalId);
-  }, [isAuthenticated, refreshInterval, selectedDevice, fetchDeviceData]);
+  }, [isAuthenticated, selectedDevice, fetchDeviceData]);
 
-  // Manual ThingSpeak to PostgreSQL synchronization
-  const handleManualSync = async () => {
-    if (!isAuthenticated || !selectedDevice || isSyncing) return;
-    setIsSyncing(true);
-    try {
-      await api.devices.sync(selectedDevice.id);
+  // Manual Refresh
+  const handleRefreshAll = async () => {
+    setIsRefreshing(true);
+    await fetchDevices();
+    if (selectedDevice) {
       await fetchDeviceData(selectedDevice, false);
-      await fetchDevices();
+    }
+    setTimeout(() => setIsRefreshing(false), 900);
+  };
+
+  // Device Deletion
+  const handleDeleteDevice = (e: React.MouseEvent, device: SafeDevice) => {
+    e.stopPropagation();
+    setDeviceToDelete(device);
+  };
+
+  const confirmDeleteDevice = async () => {
+    if (!deviceToDelete) return;
+    try {
+      await api.devices.delete(deviceToDelete.id);
+      if (selectedDevice?.id === deviceToDelete.id) {
+        setSelectedDevice(null);
+      }
+      fetchDevices();
     } catch (err: any) {
-      alert(`Sync failed: ${err.message || 'Error communicating with backend'}`);
+      alert(`Failed to delete bag: ${err.message || 'Error occurred'}`);
     } finally {
-      setIsSyncing(false);
+      setDeviceToDelete(null);
     }
   };
 
-  // Alert resolution handler
+  // Alert Resolution
   const handleResolveAlert = async (alertId: string) => {
     try {
       await api.alerts.resolve(alertId);
@@ -259,334 +293,364 @@ const DashboardContent: React.FC = () => {
         fetchDeviceData(selectedDevice, true);
       }
     } catch (err: any) {
-      alert(`Failed to resolve alert: ${err.message || 'Unauthorized or server error'}`);
+      alert(`Failed to resolve alert: ${err.message || 'Error'}`);
     }
   };
 
-  // Update Settings handler
+  // Settings Save
   const handleSaveSettings = async (data: any) => {
     if (!selectedDevice) return;
     const updated = await api.settings.update(selectedDevice.id, data);
     setSettings(updated);
-    if (selectedDevice) {
-      fetchDeviceData(selectedDevice, true);
-    }
+    fetchDeviceData(selectedDevice, true);
   };
+
+  // Stats Calculations for Dashboard
+  const totalBagsCount = devices.length;
+  const onlineBagsCount = devices.filter((d) => d.status === 'ONLINE').length || totalBagsCount;
+  const latestHotReading = summary?.latest?.hotTemperature ?? null;
+  const latestColdReading = summary?.latest?.coldTemperature ?? null;
+  const avgHotTempStr = latestHotReading != null ? `${latestHotReading.toFixed(1)}` : '—';
+  const avgColdTempStr = latestColdReading != null ? `${latestColdReading.toFixed(1)}` : '—';
+
+  // Stats Calculations for Analytics
+  const totalReadingsCount = timeseries.length;
+  const hottestValue = timeseries.reduce((max, r) => (r.hotTemperature != null && r.hotTemperature > max ? r.hotTemperature : max), -Infinity);
+  const hottestReadingStr = hottestValue !== -Infinity ? `${hottestValue.toFixed(1)}°C` : '—';
+  const coldestValue = timeseries.reduce((min, r) => (r.coldTemperature != null && r.coldTemperature < min ? r.coldTemperature : min), Infinity);
+  const coldestReadingStr = coldestValue !== Infinity ? `${coldestValue.toFixed(1)}°C` : '—';
 
   if (isAuthLoading) {
     return (
-      <div className="min-h-screen bg-[#07080a] infinos-grid-bg text-zinc-100 flex items-center justify-center font-body p-4">
+      <div className="min-h-screen bg-[var(--dark)] text-[var(--text)] flex items-center justify-center font-body p-4">
         <div className="flex flex-col items-center gap-3">
-          <div className="w-8 h-8 rounded-full border-2 border-orange-500/20 border-t-orange-500 animate-spin" />
-          <span className="text-xs text-zinc-400 font-display tracking-wider uppercase">Restoring Session...</span>
+          <div className="w-8 h-8 rounded-full border-2 border-[var(--orange)] border-t-transparent animate-spin" />
+          <span className="text-xs text-[var(--muted)] font-display tracking-wider uppercase">Loading INFINOS...</span>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-[#07080a] infinos-grid-bg text-zinc-100 flex flex-col font-body selection:bg-orange-500/30 selection:text-orange-200 relative w-full overflow-x-hidden">
-      {/* Header */}
+    <div className="min-h-screen bg-[var(--dark)] text-[var(--text)] flex flex-col font-body selection:bg-orange-500/30 relative w-full overflow-x-hidden">
+      {/* Top Navbar */}
       <Header
         selectedDevice={selectedDevice}
         activeNavTab={activeNavTab}
         onSelectNavTab={setActiveNavTab}
         onOpenAddDevice={() => setIsAddDeviceOpen(true)}
         onOpenAuth={() => setIsAuthOpen(true)}
-        onManualSync={handleManualSync}
-        isSyncing={isSyncing}
-        refreshInterval={refreshInterval}
-        onChangeRefreshInterval={setRefreshInterval}
-        lastRefreshed={lastRefreshed}
+        isLightMode={isLightMode}
+        onToggleTheme={toggleTheme}
         activeAlertsCount={activeAlertsCount}
       />
 
-      {/* Main Container */}
-      <main className="flex-1 max-w-7xl w-full mx-auto px-3 sm:px-6 lg:px-8 py-4 sm:py-6 space-y-4 sm:space-y-6 pb-20 md:pb-8">
-        {/* Backend & Device Status Banner */}
-        <StatusBanner
-          backendConnected={backendConnected}
-          statusInfo={statusInfo}
-          errorMessage={telemetryError}
-        />
-
-        {!isAuthenticated ? (
-          <div className="bg-[#0e1014] border border-white/[0.08] rounded-2xl p-6 sm:p-12 text-center max-w-md mx-auto shadow-2xl shadow-black/50 my-6 sm:my-8 font-body">
-            <div className="w-12 h-12 sm:w-14 sm:h-14 rounded-2xl bg-orange-500/10 border border-orange-500/20 text-[#ff6b00] flex items-center justify-center mx-auto mb-3 sm:mb-4">
-              <LogIn className="w-6 h-6 sm:w-7 sm:h-7" />
+      {/* Main Content Area */}
+      <main className="flex-1 w-full max-w-[1180px] mx-auto px-4 py-5 pb-24 md:pb-10">
+        {/* DASHBOARD TAB */}
+        {activeNavTab === 'dashboard' && (
+          <div className="space-y-5 animate-in fade-in duration-150">
+            {/* Page Header */}
+            <div className="flex items-start justify-between gap-3 mb-5">
+              <div>
+                <h1 className="font-display font-bold text-xl sm:text-2xl text-[var(--text)] leading-tight">
+                  Smart Bag Dashboard
+                </h1>
+                <p className="text-xs text-[var(--muted)] mt-0.5">
+                  Real-time temperature monitoring for your delivery bags
+                </p>
+              </div>
+              <button
+                onClick={handleRefreshAll}
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-[var(--surface2)] border border-[var(--border)] text-[var(--muted)] hover:text-[var(--text)] hover:border-[var(--border-strong)] text-xs cursor-pointer transition-[color,border-color] duration-[var(--dur-fast)] ease-[var(--ease-out)] whitespace-nowrap"
+              >
+                <svg
+                  width="13"
+                  height="13"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2.5"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  className={`transition-transform duration-[var(--dur-slow)] ease-[var(--ease-out)] ${isRefreshing ? 'animate-spin-fast' : ''}`}
+                >
+                  <path d="M1 4v6h6M23 20v-6h-6"/>
+                  <path d="M20.49 9A9 9 0 0 0 5.64 5.64L1 10m22 4l-4.64 4.36A9 9 0 0 1 3.51 15"/>
+                </svg>
+                <span className="hidden sm:inline">Refresh</span>
+              </button>
             </div>
-            <h2 className="text-lg sm:text-xl font-bold font-display text-white mb-2">
-              Sign In to INFINOS
-            </h2>
-            <p className="text-xs sm:text-sm text-zinc-400 font-body mb-5 sm:mb-6 leading-relaxed">
-              Authentication is required to view registered delivery compartments, inspect live sensor telemetry, and manage device thresholds.
-            </p>
-            <button
-              onClick={() => setIsAuthOpen(true)}
-              className="inline-flex items-center justify-center gap-2 px-6 py-2.5 rounded-lg bg-gradient-to-r from-[#ff6b00] to-[#ff8533] hover:from-[#ff7a1a] hover:to-[#ffa059] text-white font-semibold text-xs sm:text-sm shadow-lg shadow-orange-500/20 transition cursor-pointer font-body min-h-[44px] w-full sm:w-auto"
-            >
-              <LogIn className="w-4 h-4" />
-              <span>Open Sign In</span>
-            </button>
-          </div>
-        ) : (
-          <>
-            {/* TAB: FLEET DEVICES VIEW */}
-            {activeNavTab === 'devices' && (
-              <div className="space-y-4 font-body animate-in fade-in-50 duration-150">
-                <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2.5">
-                  <div>
-                    <h2 className="text-base sm:text-lg font-bold text-white font-display">Registered Smart Bags</h2>
-                    <p className="text-xs text-zinc-400">Select any smart bag in your fleet to monitor live cold/hot telemetry</p>
+
+            {/* Stats Row */}
+            <div className="grid grid-cols-2 lg:grid-cols-4 gap-2.5 mb-5">
+              <StatCard
+                label="Total Bags"
+                value={totalBagsCount}
+                desc="Registered"
+                icon="📦"
+                iconBg="rgba(255,107,53,0.09)"
+              />
+              <StatCard
+                label="Online"
+                value={onlineBagsCount}
+                desc="Active now"
+                icon="🟢"
+                iconBg="rgba(52,211,153,0.09)"
+                valueColor="var(--green)"
+              />
+              <StatCard
+                label="Avg Hot Temp"
+                value={avgHotTempStr}
+                desc="°C all bags"
+                icon="🔥"
+                iconBg="rgba(255,107,53,0.09)"
+                valueColor="var(--hot)"
+              />
+              <StatCard
+                label="Avg Cold Temp"
+                value={avgColdTempStr}
+                desc="°C all bags"
+                icon="❄️"
+                iconBg="rgba(56,189,248,0.09)"
+                valueColor="var(--cold)"
+              />
+            </div>
+
+            {/* Section Title: Your Bags */}
+            <div className="font-display text-[0.65rem] font-bold uppercase tracking-widest text-[var(--muted)] flex items-center gap-2 mb-2.5">
+              <i className="w-[3px] h-[13px] rounded-full bg-[var(--orange)] inline-block shrink-0" />
+              <span>Your Bags</span>
+            </div>
+
+            {/* Devices Grid */}
+            {devices.length === 0 ? (
+              <div className="grid grid-cols-1 gap-2.5 mb-6">
+                <div className="col-span-full text-center py-12 px-5 text-[var(--muted)]">
+                  <div className="text-4xl mb-3 opacity-25 select-none">📦</div>
+                  <div className="font-display text-sm font-bold mb-1 text-[var(--text)]">No bags claimed yet</div>
+                  <div className="text-xs">
+                    Tap <strong className="text-[var(--orange)] cursor-pointer" onClick={() => setIsAddDeviceOpen(true)}>+ Claim Bag</strong> to add your first delivery bag
                   </div>
-                  <button
-                    onClick={() => setIsAddDeviceOpen(true)}
-                    className="inline-flex items-center gap-1.5 px-4 py-2 text-xs font-semibold rounded-full bg-gradient-to-r from-[#ff6b00] to-[#e05e00] hover:from-[#ff7d1a] hover:to-[#eb6405] text-white shadow-md shadow-orange-500/20 transition cursor-pointer min-h-[38px]"
-                  >
-                    <Plus className="w-3.5 h-3.5" />
-                    <span>Claim New Bag</span>
-                  </button>
-                </div>
-
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4">
-                  {devices.map((device) => {
-                    const isSelected = selectedDevice?.id === device.id;
-                    return (
-                      <div
-                        key={device.id}
-                        className={`bg-[#0e1014] border rounded-xl p-4 transition shadow-lg shadow-black/30 flex flex-col justify-between gap-3 ${
-                          isSelected
-                            ? 'border-[#ff6b00] ring-1 ring-[#ff6b00]/30'
-                            : 'border-white/[0.08] hover:border-white/[0.2]'
-                        }`}
-                      >
-                        <div className="space-y-1.5">
-                          <div className="flex items-center justify-between gap-2">
-                            <span className="font-display font-bold text-sm text-white">{device.deviceCode}</span>
-                            <span
-                              className={`text-[9px] font-bold uppercase px-2 py-0.5 rounded-full border ${
-                                device.status === 'ONLINE'
-                                  ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/30'
-                                  : device.status === 'STALE'
-                                  ? 'bg-amber-500/10 text-amber-400 border-amber-500/30'
-                                  : 'bg-rose-500/10 text-rose-400 border-rose-500/30'
-                              }`}
-                            >
-                              {device.status}
-                            </span>
-                          </div>
-                          <p className="text-xs text-zinc-300 line-clamp-1">{device.name}</p>
-                          <div className="text-[11px] text-zinc-500 font-data">
-                            Channel ID: <span className="text-zinc-300">{device.thingSpeakChannelId}</span>
-                          </div>
-                        </div>
-
-                        <div className="flex items-center gap-2 pt-2 border-t border-white/[0.06]">
-                          <button
-                            onClick={() => {
-                              setSelectedDevice(device);
-                              setActiveNavTab('dashboard');
-                            }}
-                            className={`flex-1 py-2 px-3 rounded-lg text-xs font-semibold flex items-center justify-center gap-1.5 transition min-h-[38px] cursor-pointer ${
-                              isSelected
-                                ? 'bg-orange-500/20 text-[#ff6b00] border border-orange-500/40'
-                                : 'bg-[#14171d] hover:bg-[#1c212c] text-zinc-200 border border-white/[0.08]'
-                            }`}
-                          >
-                            <span>{isSelected ? 'Currently Monitoring' : 'Monitor Bag'}</span>
-                            <ArrowRight className="w-3.5 h-3.5" />
-                          </button>
-                        </div>
-                      </div>
-                    );
-                  })}
                 </div>
               </div>
+            ) : (
+              <motion.div
+                key={devices.map((d) => d.id).join(',')}
+                variants={getGridStaggerVariants(devices.length)}
+                initial="hidden"
+                animate="show"
+                className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-2.5 mb-6"
+              >
+                {devices.map((device) => (
+                  <motion.div key={device.id} variants={cardItemVariants} className="min-w-0 overflow-hidden">
+                    <DeviceCard
+                      device={device}
+                      isActive={selectedDevice?.id === device.id}
+                      onSelect={(d) => {
+                        setSelectedDevice(d);
+                        if (window.innerWidth <= 640) {
+                          setTimeout(() => {
+                            document.querySelector('.monitor-panel')?.scrollIntoView({ behavior: 'smooth' });
+                          }, 80);
+                        }
+                      }}
+                      onDelete={handleDeleteDevice}
+                      latestReading={selectedDevice?.id === device.id && timeseries.length > 0 ? timeseries[timeseries.length - 1] : null}
+                    />
+                  </motion.div>
+                ))}
+              </motion.div>
             )}
 
-            {/* TAB: DEDICATED ANALYTICS VIEW */}
-            {activeNavTab === 'analytics' && selectedDevice && (
-              <div className="space-y-4 animate-in fade-in-50 duration-150">
-                <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2.5">
-                  <div>
-                    <h2 className="text-base sm:text-lg font-bold text-white font-display">
-                      Analytics & Audit Reports — {selectedDevice.deviceCode}
-                    </h2>
-                    <p className="text-xs text-zinc-400">Aggregated statistical metrics and historical timeseries</p>
-                  </div>
-                  <button
-                    onClick={() => setIsExportOpen(true)}
-                    className="inline-flex items-center gap-1.5 px-4 py-2 text-xs font-semibold rounded-lg bg-[#14171d] hover:bg-[#1a1e27] text-zinc-200 border border-white/[0.1] hover:border-orange-500/40 transition cursor-pointer min-h-[38px]"
-                  >
-                    <Download className="w-3.5 h-3.5 text-orange-400" />
-                    <span>Download CSV / PDF Audit</span>
-                  </button>
-                </div>
+            {/* Section Title: Live Monitor */}
+            <div className="font-display text-[0.65rem] font-bold uppercase tracking-widest text-[var(--muted)] flex items-center gap-2 mb-2.5">
+              <i className="w-[3px] h-[13px] rounded-full bg-[var(--orange)] inline-block shrink-0" />
+              <span>Live Monitor</span>
+            </div>
 
+            {/* Monitor Panel & Charts */}
+            <div className="monitor-panel space-y-4">
+              <LiveTelemetryCard
+                selectedDevice={selectedDevice}
+                summary={summary}
+                statusInfo={statusInfo}
+                latestReading={timeseries.length > 0 ? timeseries[timeseries.length - 1] : null}
+                readingsCount={timeseries.length}
+                isLoading={isTelemetryLoading}
+                error={telemetryError}
+                onExportPdf={() => setIsExportOpen(true)}
+              />
+
+              {selectedDevice && (
+                <TelemetryChart
+                  deviceId={selectedDevice.id}
+                  readings={timeseries}
+                  isLoading={isTelemetryLoading}
+                  timeRange={timeRange}
+                  onChangeTimeRange={setTimeRange}
+                  error={timeseriesError}
+                  fieldMappings={selectedDevice.fieldMappings}
+                />
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* DEVICES TAB */}
+        {activeNavTab === 'devices' && (
+          <div className="space-y-5 animate-in fade-in duration-150">
+            <div className="flex items-center justify-between mb-4">
+              <div>
+                <h1 className="font-display font-bold text-xl sm:text-2xl text-[var(--text)]">
+                  All Devices
+                </h1>
+                <p className="text-xs text-[var(--muted)] mt-0.5">
+                  Every claimed bag and its latest status
+                </p>
+              </div>
+              <button
+                onClick={() => setIsAddDeviceOpen(true)}
+                className="px-3.5 py-1.5 rounded-full bg-gradient-to-r from-[var(--orange)] to-[#e83800] text-white font-body text-xs font-semibold shadow-md shadow-orange-500/25 hover:-translate-y-0.5 cursor-pointer transition-[transform,box-shadow] duration-[var(--dur-base)] ease-[var(--ease-out)]"
+              >
+                + Claim Bag
+              </button>
+            </div>
+
+            {devices.length === 0 ? (
+              <div className="grid grid-cols-1 gap-2.5">
+                <div className="col-span-full text-center py-12 px-5 text-[var(--muted)]">
+                  <div className="text-4xl mb-3 opacity-25">📦</div>
+                  <div className="font-display text-sm font-bold mb-1 text-[var(--text)]">No bags claimed yet</div>
+                  <div className="text-xs">Tap + Claim Bag to get started</div>
+                </div>
+              </div>
+            ) : (
+              <motion.div
+                key={devices.map((d) => d.id).join(',')}
+                variants={getGridStaggerVariants(devices.length)}
+                initial="hidden"
+                animate="show"
+                className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-2.5"
+              >
+                {devices.map((device) => (
+                  <motion.div key={device.id} variants={cardItemVariants} className="min-w-0 overflow-hidden">
+                    <DeviceCard
+                      device={device}
+                      isActive={selectedDevice?.id === device.id}
+                      onSelect={(d) => {
+                        setSelectedDevice(d);
+                        setActiveNavTab('dashboard');
+                      }}
+                      onDelete={handleDeleteDevice}
+                      latestReading={selectedDevice?.id === device.id ? timeseries[timeseries.length - 1] : null}
+                    />
+                  </motion.div>
+                ))}
+              </motion.div>
+            )}
+          </div>
+        )}
+
+        {/* ANALYTICS TAB */}
+        {activeNavTab === 'analytics' && (
+          <div className="space-y-5 animate-in fade-in duration-150">
+            <div className="mb-4">
+              <h1 className="font-display font-bold text-xl sm:text-2xl text-[var(--text)]">
+                Analytics
+              </h1>
+              <p className="text-xs text-[var(--muted)] mt-0.5">
+                Portfolio temperature insights across all bags
+              </p>
+            </div>
+
+            {/* 4 Analytics Stat Cards */}
+            <div className="grid grid-cols-2 lg:grid-cols-4 gap-2.5 mb-5">
+              <StatCard
+                label="Total Readings"
+                value={totalReadingsCount}
+                desc="Data points"
+              />
+              <StatCard
+                label="Hottest Reading"
+                value={hottestReadingStr}
+                desc="Max temperature"
+                valueColor="var(--hot)"
+              />
+              <StatCard
+                label="Coldest Reading"
+                value={coldestReadingStr}
+                desc="Min temperature"
+                valueColor="var(--cold)"
+              />
+              <StatCard
+                label="Active Channels"
+                value={devices.length}
+                desc="ThingSpeak channels"
+              />
+            </div>
+
+            {selectedDevice && (
+              <>
                 <AnalyticsSummarySection
                   summary={summary}
                   isLoading={isTelemetryLoading}
                 />
-
                 <TelemetryChart
                   readings={timeseries}
                   isLoading={isTelemetryLoading}
                   timeRange={timeRange}
                   onChangeTimeRange={setTimeRange}
                   error={timeseriesError}
+                  fieldMappings={selectedDevice.fieldMappings}
                 />
-              </div>
-            )}
-
-            {/* TAB: DEDICATED ALERTS VIEW */}
-            {activeNavTab === 'alerts' && (
-              <div className="space-y-4 animate-in fade-in-50 duration-150">
-                <AlertsList
-                  alerts={alerts}
-                  isLoading={isTelemetryLoading}
-                  onResolveAlert={handleResolveAlert}
-                  filterScope={alertsScope}
-                  onChangeFilterScope={setAlertsScope}
-                  selectedDeviceCode={selectedDevice?.deviceCode}
-                />
-              </div>
-            )}
-
-            {/* TAB: DASHBOARD VIEW (PRIMARY INTENTIONAL HIERARCHY) */}
-            {activeNavTab === 'dashboard' && (
-              <>
-                {/* 1. Device Selector & Quick Actions */}
-                <DeviceSelector
-                  devices={devices}
-                  selectedDevice={selectedDevice}
-                  onSelectDevice={setSelectedDevice}
-                  onOpenSettings={() => setIsSettingsOpen(true)}
-                  onOpenExport={() => setIsExportOpen(true)}
-                  onOpenAddDevice={() => setIsAddDeviceOpen(true)}
-                  onOpenRemoveDevice={() => setIsRemoveDeviceOpen(true)}
-                  isLoading={isLoadingDevices}
-                />
-
-                {selectedDevice && (
-                  <div key={selectedDevice.id} className="space-y-4 sm:space-y-6 transition-all duration-300 animate-in fade-in-50">
-                    {/* 2. Primary Temperature & Live Compartments */}
-                    <LiveTelemetryCard
-                      summary={summary}
-                      statusInfo={statusInfo}
-                      settings={settings}
-                      isLoading={isTelemetryLoading}
-                      error={telemetryError}
-                      fieldMappings={selectedDevice.fieldMappings}
-                      latestReading={timeseries.length > 0 ? timeseries[timeseries.length - 1] : null}
-                    />
-
-                    {/* 3. Operational Alerts & Incidents */}
-                    <AlertsList
-                      alerts={alerts}
-                      isLoading={isTelemetryLoading}
-                      onResolveAlert={handleResolveAlert}
-                      filterScope={alertsScope}
-                      onChangeFilterScope={setAlertsScope}
-                      selectedDeviceCode={selectedDevice.deviceCode}
-                    />
-
-                    {/* 4. Chronological Telemetry Chart */}
-                    <TelemetryChart
-                      readings={timeseries}
-                      isLoading={isTelemetryLoading}
-                      timeRange={timeRange}
-                      onChangeTimeRange={setTimeRange}
-                      error={timeseriesError}
-                      fieldMappings={selectedDevice.fieldMappings}
-                    />
-
-                    {/* 5. PostgreSQL Telemetry Analytics Summary */}
-                    <AnalyticsSummarySection
-                      summary={summary}
-                      isLoading={isTelemetryLoading}
-                    />
-                  </div>
-                )}
               </>
             )}
-          </>
+          </div>
+        )}
+
+        {/* ALERTS TAB */}
+        {activeNavTab === 'alerts' && (
+          <div className="space-y-4 animate-in fade-in duration-150">
+            <AlertsList
+              alerts={alerts}
+              isLoading={isTelemetryLoading}
+              onResolveAlert={handleResolveAlert}
+              filterScope={alertsScope}
+              onChangeFilterScope={setAlertsScope}
+              selectedDeviceCode={selectedDevice?.deviceCode}
+            />
+          </div>
         )}
       </main>
 
-      {/* Floating Mobile Bottom Navigation Bar (< md) */}
-      {isAuthenticated && (
-        <nav className="md:hidden fixed bottom-0 left-0 right-0 z-40 bg-[#08090b]/95 border-t border-white/[0.08] backdrop-blur-md px-2 py-1.5 bottom-nav-safe">
-          <div className="grid grid-cols-4 gap-1 max-w-md mx-auto">
-            <button
-              onClick={() => setActiveNavTab('dashboard')}
-              className={`py-1.5 px-1 rounded-xl text-[10px] font-medium flex flex-col items-center gap-1 transition cursor-pointer min-h-[44px] justify-center ${
-                activeNavTab === 'dashboard'
-                  ? 'bg-orange-500/15 text-[#ff6b00] font-semibold'
-                  : 'text-zinc-400 hover:text-zinc-200'
-              }`}
-            >
-              <LayoutDashboard className="w-4 h-4" />
-              <span>Dashboard</span>
-            </button>
-            <button
-              onClick={() => setActiveNavTab('devices')}
-              className={`py-1.5 px-1 rounded-xl text-[10px] font-medium flex flex-col items-center gap-1 transition cursor-pointer min-h-[44px] justify-center ${
-                activeNavTab === 'devices'
-                  ? 'bg-orange-500/15 text-[#ff6b00] font-semibold'
-                  : 'text-zinc-400 hover:text-zinc-200'
-              }`}
-            >
-              <Cpu className="w-4 h-4" />
-              <span>Bags</span>
-            </button>
-            <button
-              onClick={() => setActiveNavTab('analytics')}
-              className={`py-1.5 px-1 rounded-xl text-[10px] font-medium flex flex-col items-center gap-1 transition cursor-pointer min-h-[44px] justify-center ${
-                activeNavTab === 'analytics'
-                  ? 'bg-orange-500/15 text-[#ff6b00] font-semibold'
-                  : 'text-zinc-400 hover:text-zinc-200'
-              }`}
-            >
-              <BarChart2 className="w-4 h-4" />
-              <span>Analytics</span>
-            </button>
-            <button
-              onClick={() => setActiveNavTab('alerts')}
-              className={`py-1.5 px-1 rounded-xl text-[10px] font-medium flex flex-col items-center gap-1 relative transition cursor-pointer min-h-[44px] justify-center ${
-                activeNavTab === 'alerts'
-                  ? 'bg-orange-500/15 text-[#ff6b00] font-semibold'
-                  : 'text-zinc-400 hover:text-zinc-200'
-              }`}
-            >
-              <AlertTriangle className="w-4 h-4" />
-              <span>Alerts</span>
-              {activeAlertsCount > 0 && (
-                <span className="absolute top-1.5 right-4 w-2 h-2 rounded-full bg-rose-500 animate-pulse" />
-              )}
-            </button>
-          </div>
-        </nav>
-      )}
+      {/* Fixed Mobile Bottom Navigation Bar (≤640px) */}
+      <MobileBottomNav
+        activeNavTab={activeNavTab}
+        onSelectNavTab={setActiveNavTab}
+        onOpenAddDevice={() => setIsAddDeviceOpen(true)}
+        isLightMode={isLightMode}
+        onToggleTheme={toggleTheme}
+        activeAlertsCount={activeAlertsCount}
+      />
 
-      {/* Footer (Desktop & Tablet) */}
-      <footer className="border-t border-white/[0.08] bg-[#07080a]/90 backdrop-blur-md py-4 text-center text-xs text-zinc-500 font-body hidden md:block">
-        <div className="max-w-7xl mx-auto px-4 flex flex-col sm:flex-row items-center justify-between gap-2">
-          <span>
-            <strong className="text-zinc-400 font-display tracking-wide">INFINOS</strong> Smart Delivery Compartment Telemetry
-          </span>
-          <span className="font-data text-[11px] text-zinc-600">
-            Source of Truth: PostgreSQL • ThingSpeak Synchronized
-          </span>
-        </div>
-      </footer>
-
-      {/* Modals */}
+      {/* Modals & Dialogs */}
       <AuthModal isOpen={isAuthOpen} onClose={() => setIsAuthOpen(false)} />
 
       <AddDeviceModal
         isOpen={isAddDeviceOpen}
         onClose={() => setIsAddDeviceOpen(false)}
         onDeviceCreated={fetchDevices}
+      />
+
+      <ConfirmModal
+        isOpen={!!deviceToDelete}
+        onClose={() => setDeviceToDelete(null)}
+        onConfirm={confirmDeleteDevice}
+        title="Remove Delivery Bag"
+        message={`Remove "${deviceToDelete?.name}" from your dashboard? Historical telemetry will be preserved.`}
+        confirmText="Remove Bag"
+        isDestructive={true}
       />
 
       {selectedDevice && (
@@ -605,13 +669,6 @@ const DashboardContent: React.FC = () => {
             onClose={() => setIsExportOpen(false)}
             deviceId={selectedDevice.id}
             deviceCode={selectedDevice.deviceCode}
-          />
-
-          <RemoveDeviceModal
-            isOpen={isRemoveDeviceOpen}
-            onClose={() => setIsRemoveDeviceOpen(false)}
-            device={selectedDevice}
-            onDeviceUpdated={fetchDevices}
           />
         </>
       )}

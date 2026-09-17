@@ -1,0 +1,75 @@
+%PDF-1.4
+%âãÏÓ
+1 0 obj
+<< /Type /Catalog /Pages 2 0 R >>
+endobj
+2 0 obj
+<< /Type /Pages /Kids [5 0 R] /Count 1 >>
+endobj
+3 0 obj
+<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica /Encoding /WinAnsiEncoding >>
+endobj
+4 0 obj
+<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica-Bold /Encoding /WinAnsiEncoding >>
+endobj
+5 0 obj
+<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F1 3 0 R /F2 4 0 R >> >> /Contents 6 0 R >>
+endobj
+6 0 obj
+<< /Length 3260 >>
+stream
+0.080 0.120 0.220 rg 40.00 725.00 532.00 45.00 re f
+BT 1.000 1.000 1.000 rg /F2 14 Tf 1 0 0 1 55.00 750.00 Tm (INFINOS SMART DELIVERY BAG SYSTEM) Tj ET
+BT 0.850 0.900 1.000 rg /F1 9 Tf 1 0 0 1 55.00 735.00 Tm (Sensor Telemetry & Operational Quality Audit Report) Tj ET
+1.00 w 0.850 0.880 0.920 RG 0.970 0.980 1.000 rg 40.00 640.00 532.00 75.00 re B
+BT 0.150 0.250 0.500 rg /F2 9.5 Tf 1 0 0 1 52.00 698.00 Tm (DEVICE INFORMATION) Tj ET
+BT 0.000 0.000 0.000 rg /F2 9 Tf 1 0 0 1 52.00 680.00 Tm (Bag Code: BAG-PERIOD) Tj ET
+BT 0.000 0.000 0.000 rg /F1 9 Tf 1 0 0 1 52.00 665.00 Tm (Device Name: Period Bag) Tj ET
+BT 0.400 0.400 0.400 rg /F1 8.5 Tf 1 0 0 1 52.00 650.00 Tm (Generated: 2026-09-17 11:43:27 UTC) Tj ET
+BT 0.000 0.000 0.000 rg /F1 9 Tf 1 0 0 1 300.00 680.00 Tm (Period: 2026-09-10 to 2026-09-10) Tj ET
+BT 0.100 0.500 0.200 rg /F2 9 Tf 1 0 0 1 300.00 665.00 Tm (Total Records: 2) Tj ET
+BT 0.400 0.400 0.400 rg /F1 8.5 Tf 1 0 0 1 300.00 650.00 Tm (All matching PostgreSQL readings included) Tj ET
+BT 0.100 0.150 0.250 rg /F2 10 Tf 1 0 0 1 40.00 622.00 Tm (TELEMETRY SUMMARY \(STATISTICAL AGGREGATES\)) Tj ET
+1.00 w 0.820 0.850 0.900 RG 0.960 0.970 0.990 rg 40.00 550.00 260.00 58.00 re B
+BT 0.100 0.300 0.600 rg /F2 8.5 Tf 1 0 0 1 48.00 592.00 Tm (Cold Compartment \(°C\)) Tj ET
+BT 0.100 0.100 0.100 rg /F2 8.5 Tf 1 0 0 1 48.00 578.00 Tm (Latest: 11.0 °C) Tj ET
+BT 0.350 0.350 0.350 rg /F1 7.5 Tf 1 0 0 1 48.00 562.00 Tm (Min: 10.0 | Max: 11.0 | Avg: 10.5) Tj ET
+1.00 w 0.820 0.850 0.900 RG 0.960 0.970 0.990 rg 311.00 550.00 260.00 58.00 re B
+BT 0.100 0.300 0.600 rg /F2 8.5 Tf 1 0 0 1 319.00 592.00 Tm (Door Status) Tj ET
+BT 0.100 0.100 0.100 rg /F2 8.5 Tf 1 0 0 1 319.00 578.00 Tm (Latest: end) Tj ET
+BT 0.350 0.350 0.350 rg /F1 7.5 Tf 1 0 0 1 319.00 562.00 Tm (Readings: 2 \(non-numeric\)) Tj ET
+BT 0.100 0.150 0.250 rg /F2 10 Tf 1 0 0 1 40.00 530.00 Tm (RELEVANT ALERTS \(0 Recent\)) Tj ET
+1.00 w 0.880 0.880 0.880 RG 0.980 0.980 0.980 rg 40.00 501.00 532.00 24.00 re B
+BT 0.450 0.450 0.450 rg /F1 8.5 Tf 1 0 0 1 52.00 508.00 Tm (No operational alerts recorded for this device.) Tj ET
+BT 0.100 0.150 0.250 rg /F2 10 Tf 1 0 0 1 40.00 490.00 Tm (RECORDED SENSOR READINGS \(2\)) Tj ET
+0.150 0.220 0.350 rg 40.00 462.00 420.00 18.00 re f
+BT 0.950 0.950 0.950 rg /F2 9 Tf 1 0 0 1 44.00 467.50 Tm (Timestamp \(UTC\)) Tj ET
+BT 0.950 0.950 0.950 rg /F2 9 Tf 1 0 0 1 227.72 467.50 Tm (Cold Compartment \(°C\)) Tj ET
+BT 0.950 0.950 0.950 rg /F2 9 Tf 1 0 0 1 404.52 467.50 Tm (Door Status) Tj ET
+1.50 w 0.200 0.300 0.400 RG 40.00 462.00 m 460.00 462.00 l S
+0.970 0.970 0.980 rg 40.00 449.00 420.00 15.00 re f
+BT 0.150 0.150 0.150 rg /F1 8.5 Tf 1 0 0 1 44.00 453.25 Tm (2026-09-10 00:00:00) Tj ET
+BT 0.150 0.150 0.150 rg /F1 8.5 Tf 1 0 0 1 295.06 453.25 Tm (10.0 °C) Tj ET
+BT 0.150 0.150 0.150 rg /F1 8.5 Tf 1 0 0 1 433.90 453.25 Tm (start) Tj ET
+0.50 w 0.880 0.880 0.880 RG 40.00 449.00 m 460.00 449.00 l S
+1.000 1.000 1.000 rg 40.00 436.00 420.00 15.00 re f
+BT 0.150 0.150 0.150 rg /F1 8.5 Tf 1 0 0 1 44.00 440.25 Tm (2026-09-10 23:59:59) Tj ET
+BT 0.150 0.150 0.150 rg /F1 8.5 Tf 1 0 0 1 295.06 440.25 Tm (11.0 °C) Tj ET
+BT 0.150 0.150 0.150 rg /F1 8.5 Tf 1 0 0 1 442.74 440.25 Tm (end) Tj ET
+0.50 w 0.880 0.880 0.880 RG 40.00 436.00 m 460.00 436.00 l S
+endstream
+endobj
+xref
+0 7
+0000000000 65535 f 
+0000000019 00000 n 
+0000000068 00000 n 
+0000000125 00000 n 
+0000000222 00000 n 
+0000000324 00000 n 
+0000000460 00000 n 
+trailer
+<< /Size 7 /Root 1 0 R >>
+startxref
+3772
+%%EOF

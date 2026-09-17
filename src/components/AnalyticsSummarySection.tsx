@@ -175,7 +175,7 @@ export const AnalyticsSummarySection: React.FC<AnalyticsSummaryProps> = ({
             </tr>
           </thead>
           <tbody className="divide-y divide-white/[0.04] font-data bg-[#0b0c10]">
-            <tr className="hover:bg-white/[0.02] transition">
+            <tr className="hover:bg-white/[0.02] transition-[background-color] duration-[var(--dur-fast)] ease-[var(--ease-out)]">
               <td className="py-2.5 px-3 font-body font-medium text-zinc-200 flex items-center gap-2">
                 <span className="w-2 h-2 rounded-full bg-[#00a3ff]" />
                 Cold Compartment
@@ -194,7 +194,7 @@ export const AnalyticsSummarySection: React.FC<AnalyticsSummaryProps> = ({
               </td>
             </tr>
 
-            <tr className="hover:bg-white/[0.02] transition">
+            <tr className="hover:bg-white/[0.02] transition-[background-color] duration-[var(--dur-fast)] ease-[var(--ease-out)]">
               <td className="py-2.5 px-3 font-body font-medium text-zinc-200 flex items-center gap-2">
                 <span className="w-2 h-2 rounded-full bg-[#ff6b00]" />
                 Hot Compartment
@@ -213,7 +213,7 @@ export const AnalyticsSummarySection: React.FC<AnalyticsSummaryProps> = ({
               </td>
             </tr>
 
-            <tr className="hover:bg-white/[0.02] transition">
+            <tr className="hover:bg-white/[0.02] transition-[background-color] duration-[var(--dur-fast)] ease-[var(--ease-out)]">
               <td className="py-2.5 px-3 font-body font-medium text-zinc-200 flex items-center gap-2">
                 <span className="w-2 h-2 rounded-full bg-sky-400" />
                 Relative Humidity

@@ -1,440 +1,160 @@
-import React, { useState, useEffect, useRef } from 'react';
-import {
-  ThermometerSnowflake,
-  Flame,
-  Droplets,
-  Activity,
-  Clock,
-  AlertTriangle,
-} from 'lucide-react';
-import { AnalyticsSummary, DeviceStatusResponse, DeviceSettings, DeviceFieldMapping, SensorReading } from '../types';
+import React from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
+import { SafeDevice, AnalyticsSummary, DeviceStatusResponse, SensorReading } from '../types';
 
 interface LiveTelemetryProps {
+  selectedDevice: SafeDevice | null;
   summary: AnalyticsSummary | null;
   statusInfo: DeviceStatusResponse | null;
-  settings: DeviceSettings | null;
+  latestReading?: SensorReading | null;
+  readingsCount?: number;
   isLoading: boolean;
   error: string | null;
-  fieldMappings?: DeviceFieldMapping[] | null;
-  latestReading?: SensorReading | null;
+  onExportPdf?: () => void;
 }
 
-/**
- * Custom hook to smoothly interpolate live numeric sensor readouts.
- * Operates purely on visual rendering layer without altering underlying API data.
- */
-function useAnimatedNumber(value: number | null | undefined): number | null {
-  const [displayVal, setDisplayVal] = useState<number | null>(value ?? null);
-  const prevValRef = useRef<number | null>(value ?? null);
+const EASE_OUT = [0.16, 1, 0.3, 1];
 
-  useEffect(() => {
-    if (value === null || value === undefined) {
-      setDisplayVal(null);
-      prevValRef.current = null;
-      return;
-    }
-
-    if (prevValRef.current === null) {
-      setDisplayVal(value);
-      prevValRef.current = value;
-      return;
-    }
-
-    const start = prevValRef.current;
-    const end = value;
-    if (start === end) return;
-
-    const duration = 500; // ms easing transition
-    const startTime = performance.now();
-    let animId: number;
-
-    const step = (now: number) => {
-      const elapsed = now - startTime;
-      const progress = Math.min(elapsed / duration, 1);
-      // Cubic ease out curve
-      const eased = 1 - Math.pow(1 - progress, 3);
-      const current = start + (end - start) * eased;
-
-      setDisplayVal(current);
-
-      if (progress < 1) {
-        animId = requestAnimationFrame(step);
-      } else {
-        setDisplayVal(end);
-        prevValRef.current = end;
-      }
-    };
-
-    animId = requestAnimationFrame(step);
-    return () => cancelAnimationFrame(animId);
-  }, [value]);
-
-  return displayVal;
-}
+const crossfadeVariants = {
+  initial: { opacity: 0, y: 6 },
+  animate: {
+    opacity: 1,
+    y: 0,
+    transition: {
+      duration: 0.18, // < 200ms total transition time (--dur-base)
+      ease: EASE_OUT,
+    },
+  },
+  exit: {
+    opacity: 0,
+    y: -6,
+    transition: {
+      duration: 0.12, // snappy exit
+      ease: EASE_OUT,
+    },
+  },
+};
 
 export const LiveTelemetryCard: React.FC<LiveTelemetryProps> = ({
+  selectedDevice,
   summary,
   statusInfo,
-  settings,
+  latestReading,
+  readingsCount = 0,
   isLoading,
   error,
-  fieldMappings,
-  latestReading,
+  onExportPdf,
 }) => {
   const latest = summary?.latest;
-  const animCold = useAnimatedNumber(latest?.coldTemperature);
-  const animHot = useAnimatedNumber(latest?.hotTemperature);
-  const animHumidity = useAnimatedNumber(latest?.humidity);
-
-  // Fresh reading pulse glow state
-  const [isFreshReading, setIsFreshReading] = useState<boolean>(false);
-  const prevTsRef = useRef<string | null>(summary?.latestReadingTimestamp || null);
-
-  useEffect(() => {
-    if (summary?.latestReadingTimestamp && summary.latestReadingTimestamp !== prevTsRef.current) {
-      prevTsRef.current = summary.latestReadingTimestamp;
-      setIsFreshReading(true);
-      const timer = setTimeout(() => setIsFreshReading(false), 1200);
-      return () => clearTimeout(timer);
-    }
-  }, [summary?.latestReadingTimestamp]);
-
-  const formatValue = (val: number | null, unit: string) => {
-    if (val === null) {
-      return (
-        <span className="text-zinc-600 font-data text-3xl sm:text-4xl" title="Sensor reading unavailable">
-          —
-        </span>
-      );
-    }
-    return (
-      <div className="flex items-baseline gap-1.5 transition-all duration-300">
-        <span className="font-data tracking-tight font-extrabold text-4xl sm:text-5xl text-white">
-          {val.toFixed(1)}
-        </span>
-        <span className="text-sm sm:text-base font-body font-semibold text-zinc-400">{unit}</span>
-      </div>
-    );
-  };
-
-  const getColdStatus = (val: number | null | undefined) => {
-    if (val === null || val === undefined) return { label: 'Unavailable', color: 'text-zinc-400 bg-zinc-800/80 border-zinc-700' };
-    const min = settings?.coldTempMin ?? 0.0;
-    const max = settings?.coldTempMax ?? 8.0;
-    if (val < min || val > max) {
-      return { label: 'Out of Range', color: 'text-rose-400 bg-rose-500/15 border-rose-500/30' };
-    }
-    return { label: 'Optimal', color: 'text-emerald-400 bg-emerald-500/15 border-emerald-500/30' };
-  };
-
-  const getHotStatus = (val: number | null | undefined) => {
-    if (val === null || val === undefined) return { label: 'Unavailable', color: 'text-zinc-400 bg-zinc-800/80 border-zinc-700' };
-    const min = settings?.hotTempMin ?? 50.0;
-    const max = settings?.hotTempMax ?? 70.0;
-    if (val < min || val > max) {
-      return { label: 'Out of Range', color: 'text-rose-400 bg-rose-500/15 border-rose-500/30' };
-    }
-    return { label: 'Optimal', color: 'text-emerald-400 bg-emerald-500/15 border-emerald-500/30' };
-  };
-
-  const getHumidityStatus = (val: number | null | undefined) => {
-    if (val === null || val === undefined) return { label: 'Unavailable', color: 'text-zinc-400 bg-zinc-800/80 border-zinc-700' };
-    const min = settings?.humidityMin ?? 20.0;
-    const max = settings?.humidityMax ?? 85.0;
-    if (val < min || val > max) {
-      return { label: 'Warning', color: 'text-amber-400 bg-amber-500/15 border-amber-500/30' };
-    }
-    return { label: 'Optimal', color: 'text-emerald-400 bg-emerald-500/15 border-emerald-500/30' };
-  };
-
-  const formatTimestamp = (ts: string | null | undefined) => {
-    if (!ts) return 'No readings yet';
-    const date = new Date(ts);
-    return date.toLocaleString([], {
-      month: 'short',
-      day: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit',
-      second: '2-digit',
-    });
-  };
-
-  if (error) {
-    return (
-      <div className="bg-rose-950/25 border border-rose-900/50 rounded-xl p-4 sm:p-5 text-rose-300 flex items-center gap-3 animate-in fade-in duration-200">
-        <AlertTriangle className="w-5 h-5 text-rose-400 shrink-0" />
-        <div className="text-xs sm:text-sm font-body">
-          <p className="font-semibold text-rose-200">Telemetry Data Unavailable</p>
-          <p className="text-rose-300/80 text-xs mt-0.5">{error}</p>
-        </div>
-      </div>
-    );
-  }
-
-  const coldStatus = getColdStatus(latest?.coldTemperature);
-  const hotStatus = getHotStatus(latest?.hotTemperature);
-  const humidityStatus = getHumidityStatus(latest?.humidity);
-
-  const effectiveMappings: DeviceFieldMapping[] = React.useMemo(() => {
-    if (fieldMappings && fieldMappings.length > 0) {
-      return fieldMappings;
-    }
-    if (summary?.fieldSummaries && Object.keys(summary.fieldSummaries).length > 0) {
-      return Object.values(summary.fieldSummaries).map((s: any) => ({
-        fieldNumber: s.fieldNumber,
-        fieldKey: s.fieldKey,
-        label: s.label,
-        metric: s.metric,
-        zone: s.zone,
-        unit: s.unit,
-      }));
-    }
-    const fv = latestReading?.fieldValues || summary?.latestFieldValues;
-    if (fv && Object.keys(fv).length > 0) {
-      return Object.keys(fv)
-        .filter((k) => k.startsWith('field') && fv[k] !== null && fv[k] !== undefined)
-        .map((k) => {
-          const num = Number(k.replace('field', '')) || 1;
-          return {
-            fieldNumber: num,
-            fieldKey: k,
-            label: `Field ${num}`,
-            metric: 'other' as const,
-            zone: 'none' as const,
-            unit: '',
-          };
-        });
-    }
-    return [];
-  }, [fieldMappings, summary, latestReading]);
-
-  const hasDynamicMappings = effectiveMappings.length > 0;
+  const hotVal = latest?.hotTemperature != null ? `${latest.hotTemperature.toFixed(2)}°C` : '—';
+  const coldVal = latest?.coldTemperature != null ? `${latest.coldTemperature.toFixed(2)}°C` : '—';
+  const updatedTime = summary?.latestReadingTimestamp
+    ? new Date(summary.latestReadingTimestamp).toLocaleTimeString()
+    : new Date().toLocaleTimeString();
 
   return (
-    <div className="space-y-3">
-      {/* Telemetry Header with Timestamps & Status */}
-      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-1.5 px-0.5">
-        <div className="flex items-center gap-2">
-          <Activity className={`w-4 h-4 text-[#ff6b00] shrink-0 transition-transform duration-300 ${isFreshReading ? 'scale-125 text-orange-400' : ''}`} />
-          <h2 className="text-xs sm:text-xs font-extrabold uppercase tracking-wider text-zinc-200 font-display">
-            Live Compartment Telemetry
-          </h2>
-          {isLoading ? (
-            <span className="text-[9px] sm:text-[10px] uppercase font-bold tracking-wider px-2 py-0.5 rounded-full bg-orange-500/15 text-orange-400 border border-orange-500/30 animate-pulse">
-              Syncing...
-            </span>
-          ) : isFreshReading ? (
-            <span className="text-[9px] sm:text-[10px] uppercase font-bold tracking-wider px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-400 border border-emerald-500/40 animate-in fade-in duration-200">
-              Fresh Data
-            </span>
-          ) : null}
-        </div>
+    <div className="bg-[var(--surface)] border border-[var(--border)] rounded-[var(--radius-lg)] overflow-hidden shadow-lg shadow-black/20">
+      <AnimatePresence mode="wait">
+        {!selectedDevice ? (
+          <motion.div
+            key="empty-telemetry"
+            variants={crossfadeVariants}
+            initial="initial"
+            animate="animate"
+            exit="exit"
+            className="flex flex-col items-center justify-center p-12 text-center select-none"
+          >
+            <div className="text-4xl mb-3 opacity-25">📡</div>
+            <div className="font-display text-base font-bold mb-1 text-[var(--text)]">Select a bag to monitor</div>
+            <div className="text-xs text-[var(--muted)] max-w-xs leading-relaxed">
+              Tap any bag card above to view real-time temperature readings and history charts.
+            </div>
+          </motion.div>
+        ) : (
+          <motion.div
+            key={selectedDevice.id}
+            variants={crossfadeVariants}
+            initial="initial"
+            animate="animate"
+            exit="exit"
+          >
+            {/* Monitor Header */}
+            <div className="p-3.5 sm:px-[18px] border-b border-[var(--border)] bg-[var(--surface2)] flex flex-wrap items-center justify-between gap-2.5">
+              <div className="min-w-0 flex-1">
+                <div className="font-display font-bold text-[0.875rem] text-[var(--text)] flex items-center gap-1.5 min-w-0">
+                  <span className="truncate min-w-0" title={selectedDevice.name}>🔴 Live: {selectedDevice.name}</span>
+                </div>
+                <div className="text-[0.68rem] text-[var(--muted)] mt-0.5 font-body truncate min-w-0">
+                  Code: {selectedDevice.deviceCode} · Channel {selectedDevice.thingSpeakChannelId} · Auto-refresh every 15s
+                </div>
+              </div>
+              <div className="flex items-center gap-2 shrink-0">
+                <div className="flex items-center gap-1.2 px-2.5 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-[10px] font-bold tracking-wide">
+                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-live-blink" />
+                  <span>LIVE</span>
+                </div>
+                {onExportPdf && (
+                  <button
+                    onClick={onExportPdf}
+                    className="px-2.5 py-1 rounded-full border border-[var(--border)] bg-[var(--surface)] text-[var(--muted)] hover:text-[var(--text)] hover:border-[var(--border-strong)] active:scale-[0.97] text-[0.7rem] cursor-pointer transition-[transform,color,border-color] duration-[var(--dur-fast)] ease-[var(--ease-out)]"
+                  >
+                    Download PDF
+                  </button>
+                )}
+              </div>
+            </div>
 
-        <div className="flex items-center gap-2 sm:gap-3 text-[11px] sm:text-xs text-zinc-400 font-body">
-          <div className="flex items-center gap-1.5">
-            <Clock className="w-3.5 h-3.5 text-zinc-500 shrink-0" />
-            <span>Recorded: <strong className="font-data text-zinc-200 font-medium">{formatTimestamp(summary?.latestReadingTimestamp)}</strong></span>
-          </div>
-          {statusInfo?.message && (
-            <span className="hidden xl:inline text-zinc-500">• {statusInfo.message}</span>
-          )}
-        </div>
-      </div>
+            {/* Monitor Body */}
+            <div className="p-4 sm:p-[18px_16px_20px]">
+              {/* Timestamp Bar */}
+              <div className="flex items-center flex-wrap gap-1.5 px-2.5 py-1.5 bg-[var(--surface2)] rounded-lg text-[0.68rem] text-[var(--muted)] mb-3.5">
+                <span>🕐 Updated: <strong className="text-[var(--text)] font-medium">{updatedTime}</strong></span>
+                <span>·</span>
+                <span>{readingsCount} readings loaded</span>
+              </div>
 
-      {/* Dynamic or Legacy Compartment Cards Grid */}
-      {hasDynamicMappings ? (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3.5 sm:gap-4">
-          {effectiveMappings.map((m) => {
-            const rawVal = latestReading?.fieldValues?.[m.fieldKey] ?? summary?.latestFieldValues?.[m.fieldKey] ?? (
-              m.zone === 'cold' ? latest?.coldTemperature :
-              m.zone === 'hot' ? latest?.hotTemperature :
-              m.metric === 'humidity' ? latest?.humidity : null
-            );
-
-            const isCold = m.zone === 'cold';
-            const isHot = m.zone === 'hot';
-            const isHum = m.metric === 'humidity';
-
-            const status = isCold ? getColdStatus(rawVal) : isHot ? getHotStatus(rawVal) : isHum ? getHumidityStatus(rawVal) : (
-              rawVal !== null
-                ? { label: 'Optimal', color: 'text-emerald-400 bg-emerald-500/15 border-emerald-500/30' }
-                : { label: 'Unavailable', color: 'text-zinc-400 bg-zinc-800/80 border-zinc-700' }
-            );
-
-            const unit = m.unit || (m.metric === 'temperature' ? '°C' : m.metric === 'humidity' ? '%' : '');
-            const accentColor = isCold ? '#00a3ff' : isHot ? '#ff6b00' : isHum ? '#38bdf8' : '#10b981';
-
-            return (
-              <div
-                key={m.fieldKey}
-                className={`bg-[#0e1014] border rounded-xl p-4 sm:p-5 transition-all duration-300 relative overflow-hidden group shadow-lg shadow-black/40 ${
-                  isFreshReading
-                    ? 'border-white/40 shadow-white/5'
-                    : 'border-white/[0.08] hover:border-white/20'
-                }`}
-              >
-                <div className="absolute top-0 left-0 w-1.5 h-full" style={{ backgroundColor: accentColor }} />
-                <div className="flex items-center justify-between gap-2 mb-3">
-                  <div className="flex items-center gap-2.5 min-w-0">
-                    <div
-                      className="w-8 h-8 rounded-lg flex items-center justify-center shrink-0 group-hover:scale-105 transition-transform"
-                      style={{
-                        backgroundColor: `${accentColor}15`,
-                        borderColor: `${accentColor}40`,
-                        color: accentColor,
-                        borderWidth: '1px',
-                      }}
-                    >
-                      {isCold ? (
-                        <ThermometerSnowflake className="w-4 h-4" />
-                      ) : isHot ? (
-                        <Flame className="w-4 h-4" />
-                      ) : isHum ? (
-                        <Droplets className="w-4 h-4" />
-                      ) : (
-                        <Activity className="w-4 h-4" />
-                      )}
-                    </div>
-                    <span className="text-xs font-bold uppercase tracking-wider text-zinc-300 font-display truncate" title={m.label}>
-                      {m.label}
-                    </span>
+              {/* 2-up Big Readings Row */}
+              <div className="grid grid-cols-2 gap-2.5 mb-4">
+                <div className="rounded-[11px] p-[16px_14px_14px] bg-gradient-to-br from-[#ff6b35]/15 to-[#ff6b35]/5 border border-[#ff6b35]/25">
+                  <div className="text-[0.62rem] font-bold uppercase tracking-wider text-[var(--text)] opacity-70 flex items-center gap-1">
+                    🔥 Hot Zone Temp
                   </div>
-                  <span className={`text-[9px] sm:text-[10px] uppercase font-bold px-2 py-0.5 rounded-full border shrink-0 transition-colors duration-300 ${status.color}`}>
-                    {status.label}
-                  </span>
+                  <div className="font-display text-[1.35rem] font-bold tracking-tight my-1 leading-tight text-[var(--hot)]">
+                    <motion.span
+                      key={updatedTime + '-hot'}
+                      initial={{ opacity: 0.3 }}
+                      animate={{ opacity: 1 }}
+                      transition={{ duration: 0.12, ease: [0.16, 1, 0.3, 1] }}
+                      className="inline-block"
+                    >
+                      {hotVal}
+                    </motion.span>
+                  </div>
+                  <div className="text-[0.65rem] opacity-60 text-[var(--muted)]">field3 · ThingSpeak</div>
                 </div>
 
-                <div className="my-3 pl-1">
-                  {formatValue(rawVal, unit)}
-                </div>
-
-                <div className="pt-3 border-t border-white/[0.06] flex items-center justify-between text-xs text-zinc-400 font-body">
-                  <span>Target Range</span>
-                  <span className="font-data text-zinc-200 font-semibold text-xs">
-                    {isCold ? (
-                      `${settings?.coldTempMin ?? 0.0}°C – ${settings?.coldTempMax ?? 8.0}°C`
-                    ) : isHot ? (
-                      `${settings?.hotTempMin ?? 50.0}°C – ${settings?.hotTempMax ?? 70.0}°C`
-                    ) : isHum ? (
-                      `${settings?.humidityMin ?? 20.0}% – ${settings?.humidityMax ?? 85.0}%`
-                    ) : (
-                      `Field ${m.fieldNumber}`
-                    )}
-                  </span>
+                <div className="rounded-[11px] p-[16px_14px_14px] bg-gradient-to-br from-[#38bdf8]/15 to-[#38bdf8]/5 border border-[#38bdf8]/25">
+                  <div className="text-[0.62rem] font-bold uppercase tracking-wider text-[var(--text)] opacity-70 flex items-center gap-1">
+                    ❄️ Cold Zone Temp
+                  </div>
+                  <div className="font-display text-[1.35rem] font-bold tracking-tight my-1 leading-tight text-[var(--cold)]">
+                    <motion.span
+                      key={updatedTime + '-cold'}
+                      initial={{ opacity: 0.3 }}
+                      animate={{ opacity: 1 }}
+                      transition={{ duration: 0.12, ease: [0.16, 1, 0.3, 1] }}
+                      className="inline-block"
+                    >
+                      {coldVal}
+                    </motion.span>
+                  </div>
+                  <div className="text-[0.65rem] opacity-60 text-[var(--muted)]">field1 · ThingSpeak</div>
                 </div>
               </div>
-            );
-          })}
-        </div>
-      ) : (
-        /* Legacy 3 Compartment Cards Grid */
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3.5 sm:gap-4">
-          {/* Cold Compartment Card */}
-          <div className={`bg-[#0e1014] border rounded-xl p-4 sm:p-5 transition-all duration-300 relative overflow-hidden group shadow-lg shadow-black/40 ${
-            isFreshReading
-              ? 'border-[#00a3ff]/60 shadow-[#00a3ff]/10'
-              : 'border-white/[0.08] hover:border-[#00a3ff]/40'
-          }`}>
-            <div className="absolute top-0 left-0 w-1.5 h-full bg-[#00a3ff]" />
-            <div className="flex items-center justify-between gap-2 mb-3">
-              <div className="flex items-center gap-2.5 min-w-0">
-                <div className="w-8 h-8 rounded-lg bg-[#00a3ff]/10 border border-[#00a3ff]/25 flex items-center justify-center text-[#00a3ff] shrink-0 group-hover:scale-105 transition-transform">
-                  <ThermometerSnowflake className="w-4 h-4" />
-                </div>
-                <span className="text-xs font-bold uppercase tracking-wider text-zinc-300 font-display truncate">
-                  Cold Compartment
-                </span>
-              </div>
-              <span
-                className={`text-[9px] sm:text-[10px] uppercase font-bold px-2 py-0.5 rounded-full border shrink-0 transition-colors duration-300 ${coldStatus.color}`}
-              >
-                {coldStatus.label}
-              </span>
             </div>
-
-            <div className="my-3 pl-1">
-              {formatValue(animCold, '°C')}
-            </div>
-
-            <div className="pt-3 border-t border-white/[0.06] flex items-center justify-between text-xs text-zinc-400 font-body">
-              <span>Target Range</span>
-              <span className="font-data text-zinc-200 font-semibold text-xs">
-                {settings?.coldTempMin ?? 0.0}°C – {settings?.coldTempMax ?? 8.0}°C
-              </span>
-            </div>
-          </div>
-
-          {/* Hot Compartment Card */}
-          <div className={`bg-[#0e1014] border rounded-xl p-4 sm:p-5 transition-all duration-300 relative overflow-hidden group shadow-lg shadow-black/40 ${
-            isFreshReading
-              ? 'border-[#ff6b00]/60 shadow-[#ff6b00]/10'
-              : 'border-white/[0.08] hover:border-orange-500/40'
-          }`}>
-            <div className="absolute top-0 left-0 w-1.5 h-full bg-[#ff6b00]" />
-            <div className="flex items-center justify-between gap-2 mb-3">
-              <div className="flex items-center gap-2.5 min-w-0">
-                <div className="w-8 h-8 rounded-lg bg-orange-500/10 border border-orange-500/25 flex items-center justify-center text-[#ff6b00] shrink-0 group-hover:scale-105 transition-transform">
-                  <Flame className="w-4 h-4" />
-                </div>
-                <span className="text-xs font-bold uppercase tracking-wider text-zinc-300 font-display truncate">
-                  Hot Compartment
-                </span>
-              </div>
-              <span
-                className={`text-[9px] sm:text-[10px] uppercase font-bold px-2 py-0.5 rounded-full border shrink-0 transition-colors duration-300 ${hotStatus.color}`}
-              >
-                {hotStatus.label}
-              </span>
-            </div>
-
-            <div className="my-3 pl-1">
-              {formatValue(animHot, '°C')}
-            </div>
-
-            <div className="pt-3 border-t border-white/[0.06] flex items-center justify-between text-xs text-zinc-400 font-body">
-              <span>Target Range</span>
-              <span className="font-data text-zinc-200 font-semibold text-xs">
-                {settings?.hotTempMin ?? 50.0}°C – {settings?.hotTempMax ?? 70.0}°C
-              </span>
-            </div>
-          </div>
-
-          {/* Relative Humidity Card */}
-          <div className={`bg-[#0e1014] border rounded-xl p-4 sm:p-5 transition-all duration-300 relative overflow-hidden group shadow-lg shadow-black/40 sm:col-span-2 lg:col-span-1 ${
-            isFreshReading
-              ? 'border-sky-500/60 shadow-sky-500/10'
-              : 'border-white/[0.08] hover:border-sky-500/40'
-          }`}>
-            <div className="absolute top-0 left-0 w-1.5 h-full bg-sky-500" />
-            <div className="flex items-center justify-between gap-2 mb-3">
-              <div className="flex items-center gap-2.5 min-w-0">
-                <div className="w-8 h-8 rounded-lg bg-sky-500/10 border border-sky-500/25 flex items-center justify-center text-sky-400 shrink-0 group-hover:scale-105 transition-transform">
-                  <Droplets className="w-4 h-4" />
-                </div>
-                <span className="text-xs font-bold uppercase tracking-wider text-zinc-300 font-display truncate">
-                  Relative Humidity
-                </span>
-              </div>
-              <span
-                className={`text-[9px] sm:text-[10px] uppercase font-bold px-2 py-0.5 rounded-full border shrink-0 transition-colors duration-300 ${humidityStatus.color}`}
-              >
-                {humidityStatus.label}
-              </span>
-            </div>
-
-            <div className="my-3 pl-1">
-              {formatValue(animHumidity, '%')}
-            </div>
-
-            <div className="pt-3 border-t border-white/[0.06] flex items-center justify-between text-xs text-zinc-400 font-body">
-              <span>Target Range</span>
-              <span className="font-data text-zinc-200 font-semibold text-xs">
-                {settings?.humidityMin ?? 20.0}% – {settings?.humidityMax ?? 85.0}%
-              </span>
-            </div>
-          </div>
-        </div>
-      )}
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 };

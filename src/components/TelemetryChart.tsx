@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useRef } from 'react';
+import React, { useState, useMemo, useRef, useEffect } from 'react';
 import { LineChart, Calendar, AlertCircle } from 'lucide-react';
 import { SensorReading, DeviceFieldMapping } from '../types';
 
@@ -9,6 +9,7 @@ interface TelemetryChartProps {
   onChangeTimeRange: (range: string) => void;
   error: string | null;
   fieldMappings?: DeviceFieldMapping[] | null;
+  deviceId?: string;
 }
 
 interface SeriesDef {
@@ -47,6 +48,7 @@ export const TelemetryChart: React.FC<TelemetryChartProps> = ({
   onChangeTimeRange,
   error,
   fieldMappings,
+  deviceId,
 }) => {
   const [activeChannel, setActiveChannel] = useState<string>('all');
   const [hoveredPoint, setHoveredPoint] = useState<{
@@ -57,6 +59,39 @@ export const TelemetryChart: React.FC<TelemetryChartProps> = ({
   } | null>(null);
 
   const svgRef = useRef<SVGSVGElement | null>(null);
+  const isInitialRenderRef = useRef<boolean>(true);
+  const prevDeviceIdRef = useRef<string | undefined>(deviceId);
+  const [isInitialDraw, setIsInitialDraw] = useState<boolean>(true);
+  const [animationStarted, setAnimationStarted] = useState<boolean>(false);
+
+  useEffect(() => {
+    // Reset initial render tracking whenever selected bag/device ID changes
+    if (prevDeviceIdRef.current !== deviceId) {
+      prevDeviceIdRef.current = deviceId;
+      isInitialRenderRef.current = true;
+    }
+
+    if (isInitialRenderRef.current) {
+      setIsInitialDraw(true);
+      setAnimationStarted(false);
+
+      // Delay chart line draw-in start by ~180ms (so LiveTelemetryCard crossfade finishes first)
+      const startTimer = setTimeout(() => {
+        setAnimationStarted(true);
+      }, 180);
+
+      // Complete line draw sequence after 180ms delay + 700ms draw duration = 880ms
+      const completeTimer = setTimeout(() => {
+        setIsInitialDraw(false);
+        isInitialRenderRef.current = false;
+      }, 880);
+
+      return () => {
+        clearTimeout(startTimer);
+        clearTimeout(completeTimer);
+      };
+    }
+  }, [deviceId]);
 
   // SVG dimensions
   const width = 800;
@@ -268,7 +303,7 @@ export const TelemetryChart: React.FC<TelemetryChartProps> = ({
   const latestX = readings.length > 0 ? getX(latestIndex) : 0;
 
   return (
-    <div className="bg-[#0e1014] border border-white/[0.08] rounded-xl p-3.5 sm:p-5 space-y-3 sm:space-y-4 shadow-lg shadow-black/30 transition-all duration-300">
+    <div className="bg-[#0e1014] border border-white/[0.08] rounded-xl p-3.5 sm:p-5 space-y-3 sm:space-y-4 shadow-lg shadow-black/30 transition-[border-color,box-shadow] duration-[var(--dur-base)] ease-[var(--ease-out)]">
       {/* Top Header & Range Selection */}
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2.5">
         <div className="flex items-center gap-2">
@@ -287,7 +322,7 @@ export const TelemetryChart: React.FC<TelemetryChartProps> = ({
           <div className="flex flex-wrap items-center bg-[#07080a] p-0.5 rounded-lg border border-white/[0.08] text-[11px] sm:text-xs font-body gap-0.5">
             <button
               onClick={() => setActiveChannel('all')}
-              className={`px-2.5 py-1 rounded font-medium transition-all duration-200 cursor-pointer ${
+              className={`px-2.5 py-1 rounded font-medium transition-[background-color,color,border-color] duration-[var(--dur-fast)] ease-[var(--ease-out)] cursor-pointer ${
                 validActiveChannel === 'all'
                   ? 'bg-zinc-800 text-white font-semibold shadow-xs'
                   : 'text-zinc-400 hover:text-zinc-200'
@@ -306,7 +341,7 @@ export const TelemetryChart: React.FC<TelemetryChartProps> = ({
                     borderColor: isActive ? `${s.color}60` : 'transparent',
                     backgroundColor: isActive ? `${s.color}20` : 'transparent',
                   }}
-                  className={`px-2.5 py-1 rounded font-medium transition-all duration-200 cursor-pointer border ${
+                  className={`px-2.5 py-1 rounded font-medium transition-[background-color,color,border-color,opacity] duration-[var(--dur-fast)] ease-[var(--ease-out)] cursor-pointer border ${
                     isActive ? 'font-semibold shadow-xs opacity-100' : 'opacity-70 hover:opacity-100'
                   }`}
                 >
@@ -322,7 +357,7 @@ export const TelemetryChart: React.FC<TelemetryChartProps> = ({
               <button
                 key={range}
                 onClick={() => onChangeTimeRange(range)}
-                className={`px-2.5 py-1 rounded font-medium transition-all duration-200 cursor-pointer ${
+                className={`px-2.5 py-1 rounded font-medium transition-[background-color,color,border-color] duration-[var(--dur-fast)] ease-[var(--ease-out)] cursor-pointer ${
                   timeRange === range
                     ? 'bg-gradient-to-r from-orange-500 to-orange-600 text-white font-semibold shadow-xs'
                     : 'text-zinc-400 hover:text-zinc-200'
@@ -350,7 +385,7 @@ export const TelemetryChart: React.FC<TelemetryChartProps> = ({
           </span>
         </div>
       ) : (
-        <div className="relative overflow-hidden w-full touch-pan-y animate-in fade-in duration-300">
+        <div className="relative overflow-hidden w-full touch-pan-y">
           <svg
             ref={svgRef}
             viewBox={`0 0 ${width} ${height}`}
@@ -428,13 +463,21 @@ export const TelemetryChart: React.FC<TelemetryChartProps> = ({
             {seriesDefs.map((s) => {
               const isVisible = validActiveChannel === 'all' || validActiveChannel === s.key;
               if (!isVisible) return null;
+              const targetOpacity = isVisible ? 1 : 0.2;
+              const currentOpacity = isInitialDraw ? (animationStarted ? targetOpacity : 0) : targetOpacity;
+              const transitionStyle = isInitialDraw
+                ? 'opacity 700ms cubic-bezier(0.25, 1, 0.5, 1) 180ms'
+                : 'opacity var(--dur-slow) var(--ease-out)';
+
               return (
                 <path
                   key={`area_${s.key}`}
                   d={generateAreaPath(s)}
                   fill={`url(#${s.gradientId})`}
-                  className="transition-opacity duration-300"
-                  style={{ opacity: isVisible ? 1 : 0.2 }}
+                  style={{
+                    opacity: currentOpacity,
+                    transition: transitionStyle,
+                  }}
                 />
               );
             })}
@@ -443,6 +486,24 @@ export const TelemetryChart: React.FC<TelemetryChartProps> = ({
             {seriesDefs.map((s) => {
               const isVisible = validActiveChannel === 'all' || validActiveChannel === s.key;
               if (!isVisible) return null;
+              const targetOpacity = isVisible ? 1 : 0.2;
+
+              // On first render for a given bag: ~700ms duration with easeOutQuart [0.25, 1, 0.5, 1], delayed by ~180ms
+              // On subsequent live poll updates: ~300ms transition without full stroke-dashoffset redraw
+              const lineStyle: React.CSSProperties = isInitialDraw
+                ? {
+                    strokeDasharray: 1000,
+                    strokeDashoffset: animationStarted ? 0 : 1000,
+                    opacity: targetOpacity,
+                    transition:
+                      'stroke-dashoffset 700ms cubic-bezier(0.25, 1, 0.5, 1) 180ms, opacity 700ms cubic-bezier(0.25, 1, 0.5, 1) 180ms',
+                  }
+                : {
+                    opacity: targetOpacity,
+                    transition:
+                      'd var(--dur-slow) var(--ease-out), stroke var(--dur-base) var(--ease-out), stroke-width var(--dur-base) var(--ease-out), opacity var(--dur-base) var(--ease-out)',
+                  };
+
               return (
                 <path
                   key={`line_${s.key}`}
@@ -452,15 +513,15 @@ export const TelemetryChart: React.FC<TelemetryChartProps> = ({
                   strokeWidth={validActiveChannel === s.key ? 3 : 2.4}
                   strokeLinecap="round"
                   strokeLinejoin="round"
-                  className="chart-path-transition"
-                  style={{ opacity: isVisible ? 1 : 0.2 }}
+                  pathLength={isInitialDraw ? 1000 : undefined}
+                  style={lineStyle}
                 />
               );
             })}
 
             {/* Live Playhead / Current Time Line */}
             {readings.length > 0 && !hoveredPoint && (
-              <g className="animate-playhead">
+              <g>
                 <line
                   x1={latestX}
                   y1={padding.top}
@@ -517,7 +578,7 @@ export const TelemetryChart: React.FC<TelemetryChartProps> = ({
           {/* Hover Tooltip Popup */}
           {hoveredPoint && (
             <div
-              className="absolute z-30 bg-[#08090b]/95 border border-white/[0.15] rounded-lg p-2.5 shadow-2xl pointer-events-none text-xs text-zinc-200 backdrop-blur-md max-w-[220px] transition-all duration-150 ease-out"
+              className="absolute z-30 bg-[#08090b]/95 border border-white/[0.15] rounded-lg p-2.5 shadow-2xl pointer-events-none text-xs text-zinc-200 backdrop-blur-md max-w-[220px] transition-[left,top,opacity] duration-[var(--dur-fast)] ease-[var(--ease-out)]"
               style={{
                 left: `${Math.min(Math.max((hoveredPoint.x / width) * 100, 15), 75)}%`,
                 top: '8px',
@@ -557,7 +618,7 @@ export const TelemetryChart: React.FC<TelemetryChartProps> = ({
             <button
               key={s.key}
               onClick={() => setActiveChannel(isActive ? 'all' : s.key)}
-              className="flex items-center gap-1.5 cursor-pointer transition hover:text-zinc-200"
+              className="flex items-center gap-1.5 cursor-pointer transition-[color] duration-[var(--dur-fast)] ease-[var(--ease-out)] hover:text-zinc-200"
               style={{ color: isActive ? s.color : undefined, fontWeight: isActive ? 'bold' : 'normal' }}
             >
               <span className="w-3 h-1 rounded-full" style={{ backgroundColor: s.color }} />
