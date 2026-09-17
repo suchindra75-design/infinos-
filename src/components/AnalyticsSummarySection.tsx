@@ -1,10 +1,22 @@
 import React from 'react';
 import { BarChart3, Database, Calendar, AlertOctagon, TrendingUp, ThermometerSnowflake, Flame, Droplets } from 'lucide-react';
-import { AnalyticsSummary } from '../types';
+import { AnalyticsSummary, FieldSummary } from '../types';
 
 interface AnalyticsSummaryProps {
   summary: AnalyticsSummary | null;
   isLoading: boolean;
+}
+
+interface ProcessedMetricRow {
+  key: string;
+  label: string;
+  unit: string;
+  color: string;
+  icon: React.ReactNode;
+  min: number | null;
+  avg: number | null;
+  max: number | null;
+  latest: number | null;
 }
 
 export const AnalyticsSummarySection: React.FC<AnalyticsSummaryProps> = ({
@@ -28,6 +40,79 @@ export const AnalyticsSummarySection: React.FC<AnalyticsSummaryProps> = ({
 
   if (!summary && !isLoading) {
     return null;
+  }
+
+  // Process rows dynamically based on summary.fieldSummaries or fallback to legacy latest/minimum/maximum/average
+  let rows: ProcessedMetricRow[] = [];
+
+  if (summary?.fieldSummaries && typeof summary.fieldSummaries === 'object' && Object.keys(summary.fieldSummaries).length > 0) {
+    const list = Object.values(summary.fieldSummaries) as FieldSummary[];
+    list.sort((a, b) => (a.fieldNumber || 1) - (b.fieldNumber || 1));
+
+    rows = list.map((fs) => {
+      const lower = fs.label.toLowerCase();
+      let color = '#a855f7';
+      let icon = <TrendingUp className="w-3.5 h-3.5" />;
+
+      if (fs.zone === 'cold' || (fs.metric === 'temperature' && lower.includes('cold'))) {
+        color = '#00a3ff';
+        icon = <ThermometerSnowflake className="w-3.5 h-3.5" />;
+      } else if (fs.zone === 'hot' || (fs.metric === 'temperature' && lower.includes('hot'))) {
+        color = '#ff6b00';
+        icon = <Flame className="w-3.5 h-3.5" />;
+      } else if (fs.metric === 'humidity' || lower.includes('humid')) {
+        color = '#38bdf8';
+        icon = <Droplets className="w-3.5 h-3.5" />;
+      }
+
+      return {
+        key: fs.fieldKey,
+        label: fs.label,
+        unit: fs.unit || (fs.metric === 'temperature' ? '°C' : fs.metric === 'humidity' ? '%' : ''),
+        color,
+        icon,
+        min: fs.minimum,
+        avg: fs.average,
+        max: fs.maximum,
+        latest: fs.latest,
+      };
+    });
+  } else if (summary) {
+    rows = [
+      {
+        key: 'cold',
+        label: 'Cold Compartment',
+        unit: '°C',
+        color: '#00a3ff',
+        icon: <ThermometerSnowflake className="w-3.5 h-3.5" />,
+        min: summary.minimum.coldTemperature,
+        avg: summary.average.coldTemperature,
+        max: summary.maximum.coldTemperature,
+        latest: summary.latest.coldTemperature,
+      },
+      {
+        key: 'hot',
+        label: 'Hot Compartment',
+        unit: '°C',
+        color: '#ff6b00',
+        icon: <Flame className="w-3.5 h-3.5" />,
+        min: summary.minimum.hotTemperature,
+        avg: summary.average.hotTemperature,
+        max: summary.maximum.hotTemperature,
+        latest: summary.latest.hotTemperature,
+      },
+      {
+        key: 'humidity',
+        label: 'Relative Humidity',
+        unit: '%',
+        color: '#38bdf8',
+        icon: <Droplets className="w-3.5 h-3.5" />,
+        min: summary.minimum.humidity,
+        avg: summary.average.humidity,
+        max: summary.maximum.humidity,
+        latest: summary.latest.humidity,
+      },
+    ];
   }
 
   return (
@@ -59,107 +144,40 @@ export const AnalyticsSummarySection: React.FC<AnalyticsSummaryProps> = ({
 
       {/* Mobile Card View (< 640px) */}
       <div className="sm:hidden space-y-2.5 font-body">
-        {/* Cold Metrics */}
-        <div className="bg-[#07080a] border border-white/[0.06] rounded-lg p-3">
-          <div className="flex items-center gap-1.5 mb-2 pb-1.5 border-b border-white/[0.04] text-[#00a3ff]">
-            <ThermometerSnowflake className="w-3.5 h-3.5" />
-            <span className="text-xs font-semibold text-zinc-200 font-display">Cold Compartment</span>
-          </div>
-          <div className="grid grid-cols-4 gap-1.5 text-center">
-            <div className="bg-[#0e1014] p-1.5 rounded border border-white/[0.04]">
-              <div className="text-[9px] uppercase text-zinc-500 font-display">Min</div>
-              <div className="text-xs font-data font-semibold text-[#00a3ff]">
-                {formatVal(summary?.minimum.coldTemperature, '°C')}
-              </div>
+        {rows.map((row) => (
+          <div key={row.key} className="bg-[#07080a] border border-white/[0.06] rounded-lg p-3">
+            <div className="flex items-center gap-1.5 mb-2 pb-1.5 border-b border-white/[0.04]" style={{ color: row.color }}>
+              {row.icon}
+              <span className="text-xs font-semibold text-zinc-200 font-display">{row.label}</span>
             </div>
-            <div className="bg-[#0e1014] p-1.5 rounded border border-white/[0.04]">
-              <div className="text-[9px] uppercase text-zinc-500 font-display">Avg</div>
-              <div className="text-xs font-data font-semibold text-zinc-200">
-                {formatVal(summary?.average.coldTemperature, '°C')}
+            <div className="grid grid-cols-4 gap-1.5 text-center">
+              <div className="bg-[#0e1014] p-1.5 rounded border border-white/[0.04]">
+                <div className="text-[9px] uppercase text-zinc-500 font-display">Min</div>
+                <div className="text-xs font-data font-semibold" style={{ color: row.color }}>
+                  {formatVal(row.min, row.unit)}
+                </div>
               </div>
-            </div>
-            <div className="bg-[#0e1014] p-1.5 rounded border border-white/[0.04]">
-              <div className="text-[9px] uppercase text-zinc-500 font-display">Max</div>
-              <div className="text-xs font-data font-semibold text-[#00a3ff]">
-                {formatVal(summary?.maximum.coldTemperature, '°C')}
+              <div className="bg-[#0e1014] p-1.5 rounded border border-white/[0.04]">
+                <div className="text-[9px] uppercase text-zinc-500 font-display">Avg</div>
+                <div className="text-xs font-data font-semibold text-zinc-200">
+                  {formatVal(row.avg, row.unit)}
+                </div>
               </div>
-            </div>
-            <div className="bg-[#0e1014] p-1.5 rounded border border-white/[0.04]">
-              <div className="text-[9px] uppercase text-zinc-500 font-display">Latest</div>
-              <div className="text-xs font-data font-bold text-white">
-                {formatVal(summary?.latest.coldTemperature, '°C')}
+              <div className="bg-[#0e1014] p-1.5 rounded border border-white/[0.04]">
+                <div className="text-[9px] uppercase text-zinc-500 font-display">Max</div>
+                <div className="text-xs font-data font-semibold" style={{ color: row.color }}>
+                  {formatVal(row.max, row.unit)}
+                </div>
               </div>
-            </div>
-          </div>
-        </div>
-
-        {/* Hot Metrics */}
-        <div className="bg-[#07080a] border border-white/[0.06] rounded-lg p-3">
-          <div className="flex items-center gap-1.5 mb-2 pb-1.5 border-b border-white/[0.04] text-[#ff6b00]">
-            <Flame className="w-3.5 h-3.5" />
-            <span className="text-xs font-semibold text-zinc-200 font-display">Hot Compartment</span>
-          </div>
-          <div className="grid grid-cols-4 gap-1.5 text-center">
-            <div className="bg-[#0e1014] p-1.5 rounded border border-white/[0.04]">
-              <div className="text-[9px] uppercase text-zinc-500 font-display">Min</div>
-              <div className="text-xs font-data font-semibold text-[#ff8533]">
-                {formatVal(summary?.minimum.hotTemperature, '°C')}
-              </div>
-            </div>
-            <div className="bg-[#0e1014] p-1.5 rounded border border-white/[0.04]">
-              <div className="text-[9px] uppercase text-zinc-500 font-display">Avg</div>
-              <div className="text-xs font-data font-semibold text-zinc-200">
-                {formatVal(summary?.average.hotTemperature, '°C')}
-              </div>
-            </div>
-            <div className="bg-[#0e1014] p-1.5 rounded border border-white/[0.04]">
-              <div className="text-[9px] uppercase text-zinc-500 font-display">Max</div>
-              <div className="text-xs font-data font-semibold text-[#ff6b00]">
-                {formatVal(summary?.maximum.hotTemperature, '°C')}
-              </div>
-            </div>
-            <div className="bg-[#0e1014] p-1.5 rounded border border-white/[0.04]">
-              <div className="text-[9px] uppercase text-zinc-500 font-display">Latest</div>
-              <div className="text-xs font-data font-bold text-white">
-                {formatVal(summary?.latest.hotTemperature, '°C')}
+              <div className="bg-[#0e1014] p-1.5 rounded border border-white/[0.04]">
+                <div className="text-[9px] uppercase text-zinc-500 font-display">Latest</div>
+                <div className="text-xs font-data font-bold text-white">
+                  {formatVal(row.latest, row.unit)}
+                </div>
               </div>
             </div>
           </div>
-        </div>
-
-        {/* Humidity Metrics */}
-        <div className="bg-[#07080a] border border-white/[0.06] rounded-lg p-3">
-          <div className="flex items-center gap-1.5 mb-2 pb-1.5 border-b border-white/[0.04] text-sky-400">
-            <Droplets className="w-3.5 h-3.5" />
-            <span className="text-xs font-semibold text-zinc-200 font-display">Relative Humidity</span>
-          </div>
-          <div className="grid grid-cols-4 gap-1.5 text-center">
-            <div className="bg-[#0e1014] p-1.5 rounded border border-white/[0.04]">
-              <div className="text-[9px] uppercase text-zinc-500 font-display">Min</div>
-              <div className="text-xs font-data font-semibold text-sky-300">
-                {formatVal(summary?.minimum.humidity, '%')}
-              </div>
-            </div>
-            <div className="bg-[#0e1014] p-1.5 rounded border border-white/[0.04]">
-              <div className="text-[9px] uppercase text-zinc-500 font-display">Avg</div>
-              <div className="text-xs font-data font-semibold text-zinc-200">
-                {formatVal(summary?.average.humidity, '%')}
-              </div>
-            </div>
-            <div className="bg-[#0e1014] p-1.5 rounded border border-white/[0.04]">
-              <div className="text-[9px] uppercase text-zinc-500 font-display">Max</div>
-              <div className="text-xs font-data font-semibold text-sky-400">
-                {formatVal(summary?.maximum.humidity, '%')}
-              </div>
-            </div>
-            <div className="bg-[#0e1014] p-1.5 rounded border border-white/[0.04]">
-              <div className="text-[9px] uppercase text-zinc-500 font-display">Latest</div>
-              <div className="text-xs font-data font-bold text-white">
-                {formatVal(summary?.latest.humidity, '%')}
-              </div>
-            </div>
-          </div>
-        </div>
+        ))}
       </div>
 
       {/* Desktop Table View (>= 640px) */}
@@ -167,7 +185,7 @@ export const AnalyticsSummarySection: React.FC<AnalyticsSummaryProps> = ({
         <table className="w-full text-left text-xs text-zinc-300">
           <thead className="bg-[#07080a] text-zinc-400 uppercase tracking-wider text-[10px] font-display border-b border-white/[0.08]">
             <tr>
-              <th className="py-2.5 px-3 font-bold">Compartment</th>
+              <th className="py-2.5 px-3 font-bold">Compartment / Field</th>
               <th className="py-2.5 px-3 font-bold text-center">Minimum</th>
               <th className="py-2.5 px-3 font-bold text-center">Average</th>
               <th className="py-2.5 px-3 font-bold text-center">Maximum</th>
@@ -175,62 +193,26 @@ export const AnalyticsSummarySection: React.FC<AnalyticsSummaryProps> = ({
             </tr>
           </thead>
           <tbody className="divide-y divide-white/[0.04] font-data bg-[#0b0c10]">
-            <tr className="hover:bg-white/[0.02] transition-[background-color] duration-[var(--dur-fast)] ease-[var(--ease-out)]">
-              <td className="py-2.5 px-3 font-body font-medium text-zinc-200 flex items-center gap-2">
-                <span className="w-2 h-2 rounded-full bg-[#00a3ff]" />
-                Cold Compartment
-              </td>
-              <td className="py-2.5 px-3 text-center text-[#00a3ff]">
-                {formatVal(summary?.minimum.coldTemperature, '°C')}
-              </td>
-              <td className="py-2.5 px-3 text-center text-zinc-200 font-medium">
-                {formatVal(summary?.average.coldTemperature, '°C')}
-              </td>
-              <td className="py-2.5 px-3 text-center text-[#00a3ff]">
-                {formatVal(summary?.maximum.coldTemperature, '°C')}
-              </td>
-              <td className="py-2.5 px-3 text-center text-white font-bold">
-                {formatVal(summary?.latest.coldTemperature, '°C')}
-              </td>
-            </tr>
-
-            <tr className="hover:bg-white/[0.02] transition-[background-color] duration-[var(--dur-fast)] ease-[var(--ease-out)]">
-              <td className="py-2.5 px-3 font-body font-medium text-zinc-200 flex items-center gap-2">
-                <span className="w-2 h-2 rounded-full bg-[#ff6b00]" />
-                Hot Compartment
-              </td>
-              <td className="py-2.5 px-3 text-center text-[#ff8533]">
-                {formatVal(summary?.minimum.hotTemperature, '°C')}
-              </td>
-              <td className="py-2.5 px-3 text-center text-zinc-200 font-medium">
-                {formatVal(summary?.average.hotTemperature, '°C')}
-              </td>
-              <td className="py-2.5 px-3 text-center text-[#ff6b00]">
-                {formatVal(summary?.maximum.hotTemperature, '°C')}
-              </td>
-              <td className="py-2.5 px-3 text-center text-white font-bold">
-                {formatVal(summary?.latest.hotTemperature, '°C')}
-              </td>
-            </tr>
-
-            <tr className="hover:bg-white/[0.02] transition-[background-color] duration-[var(--dur-fast)] ease-[var(--ease-out)]">
-              <td className="py-2.5 px-3 font-body font-medium text-zinc-200 flex items-center gap-2">
-                <span className="w-2 h-2 rounded-full bg-sky-400" />
-                Relative Humidity
-              </td>
-              <td className="py-2.5 px-3 text-center text-sky-300">
-                {formatVal(summary?.minimum.humidity, '%')}
-              </td>
-              <td className="py-2.5 px-3 text-center text-zinc-200 font-medium">
-                {formatVal(summary?.average.humidity, '%')}
-              </td>
-              <td className="py-2.5 px-3 text-center text-sky-400">
-                {formatVal(summary?.maximum.humidity, '%')}
-              </td>
-              <td className="py-2.5 px-3 text-center text-white font-bold">
-                {formatVal(summary?.latest.humidity, '%')}
-              </td>
-            </tr>
+            {rows.map((row) => (
+              <tr key={row.key} className="hover:bg-white/[0.02] transition-[background-color] duration-[var(--dur-fast)] ease-[var(--ease-out)]">
+                <td className="py-2.5 px-3 font-body font-medium text-zinc-200 flex items-center gap-2">
+                  <span className="w-2 h-2 rounded-full" style={{ backgroundColor: row.color }} />
+                  {row.label}
+                </td>
+                <td className="py-2.5 px-3 text-center" style={{ color: row.color }}>
+                  {formatVal(row.min, row.unit)}
+                </td>
+                <td className="py-2.5 px-3 text-center text-zinc-200 font-medium">
+                  {formatVal(row.avg, row.unit)}
+                </td>
+                <td className="py-2.5 px-3 text-center" style={{ color: row.color }}>
+                  {formatVal(row.max, row.unit)}
+                </td>
+                <td className="py-2.5 px-3 text-center text-white font-bold">
+                  {formatVal(row.latest, row.unit)}
+                </td>
+              </tr>
+            ))}
           </tbody>
         </table>
       </div>

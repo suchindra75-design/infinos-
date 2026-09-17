@@ -1,5 +1,6 @@
 import React from 'react';
 import { SafeDevice, SensorReading } from '../types';
+import { resolveDeviceFields, getFieldValue } from '../utils/telemetry';
 
 interface DeviceCardProps {
   device: SafeDevice;
@@ -16,8 +17,29 @@ export const DeviceCard: React.FC<DeviceCardProps> = ({
   onDelete,
   latestReading,
 }) => {
-  const hotTemp = latestReading?.hotTemperature != null ? `${latestReading.hotTemperature.toFixed(1)}°C` : '—';
-  const coldTemp = latestReading?.coldTemperature != null ? `${latestReading.coldTemperature.toFixed(1)}°C` : '—';
+  const fields = resolveDeviceFields(device, null, latestReading ? [latestReading] : []);
+  // Display up to 4 primary fields in card
+  const displayFields = fields.slice(0, 4);
+
+  const getMetricIcon = (field: ReturnType<typeof resolveDeviceFields>[0]) => {
+    const lower = field.label.toLowerCase();
+    if (field.zone === 'cold' || (field.metric === 'temperature' && lower.includes('cold'))) return '❄️';
+    if (field.zone === 'hot' || (field.metric === 'temperature' && lower.includes('hot'))) return '🔥';
+    if (field.metric === 'humidity' || lower.includes('humid')) return '💧';
+    if (lower.includes('volt') || lower.includes('battery')) return '⚡';
+    return '📊';
+  };
+
+  const getMetricColor = (field: ReturnType<typeof resolveDeviceFields>[0]) => {
+    const lower = field.label.toLowerCase();
+    if (field.zone === 'cold' || (field.metric === 'temperature' && lower.includes('cold'))) return 'text-[var(--cold)]';
+    if (field.zone === 'hot' || (field.metric === 'temperature' && lower.includes('hot'))) return 'text-[var(--hot)]';
+    if (field.metric === 'humidity' || lower.includes('humid')) return 'text-sky-400';
+    if (lower.includes('volt') || lower.includes('battery')) return 'text-amber-400';
+    return 'text-purple-400';
+  };
+
+  const gridClass = displayFields.length === 1 ? 'grid-cols-1' : displayFields.length === 3 ? 'grid-cols-3' : 'grid-cols-2';
 
   return (
     <div
@@ -50,24 +72,26 @@ export const DeviceCard: React.FC<DeviceCardProps> = ({
         {device.deviceCode}
       </div>
 
-      {/* 2-up Mini Readings Grid */}
-      <div className="grid grid-cols-2 gap-1.5 mb-3">
-        <div className="bg-[var(--surface2)] rounded-lg p-[9px_8px] text-center">
-          <div className="text-[0.58rem] font-semibold uppercase tracking-wider text-[var(--muted)]">
-            🔥 Hot
-          </div>
-          <div className="font-display text-[1rem] font-bold text-[var(--hot)] mt-0.5 leading-tight">
-            {hotTemp}
-          </div>
-        </div>
-        <div className="bg-[var(--surface2)] rounded-lg p-[9px_8px] text-center">
-          <div className="text-[0.58rem] font-semibold uppercase tracking-wider text-[var(--muted)]">
-            ❄️ Cold
-          </div>
-          <div className="font-display text-[1rem] font-bold text-[var(--cold)] mt-0.5 leading-tight">
-            {coldTemp}
-          </div>
-        </div>
+      {/* Mini Dynamic Readings Grid */}
+      <div className={`grid ${gridClass} gap-1.5 mb-3`}>
+        {displayFields.map((field) => {
+          const val = getFieldValue(field.fieldKey, field, latestReading, null);
+          const formattedVal = val !== null ? `${val.toFixed(1)}${field.unit}` : '—';
+          const icon = getMetricIcon(field);
+          const colorClass = getMetricColor(field);
+
+          return (
+            <div key={field.fieldKey} className="bg-[var(--surface2)] rounded-lg p-[9px_8px] text-center min-w-0 overflow-hidden">
+              <div className="text-[0.58rem] font-semibold uppercase tracking-wider text-[var(--muted)] truncate flex items-center justify-center gap-1" title={field.label}>
+                <span>{icon}</span>
+                <span className="truncate">{field.label}</span>
+              </div>
+              <div className={`font-display text-[0.95rem] font-bold ${colorClass} mt-0.5 leading-tight truncate`}>
+                {formattedVal}
+              </div>
+            </div>
+          );
+        })}
       </div>
 
       {/* Footer Actions */}

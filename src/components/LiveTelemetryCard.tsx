@@ -1,6 +1,7 @@
 import React from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { SafeDevice, AnalyticsSummary, DeviceStatusResponse, SensorReading } from '../types';
+import { resolveDeviceFields, getFieldValue } from '../utils/telemetry';
 
 interface LiveTelemetryProps {
   selectedDevice: SafeDevice | null;
@@ -45,12 +46,57 @@ export const LiveTelemetryCard: React.FC<LiveTelemetryProps> = ({
   error,
   onExportPdf,
 }) => {
-  const latest = summary?.latest;
-  const hotVal = latest?.hotTemperature != null ? `${latest.hotTemperature.toFixed(2)}°C` : '—';
-  const coldVal = latest?.coldTemperature != null ? `${latest.coldTemperature.toFixed(2)}°C` : '—';
   const updatedTime = summary?.latestReadingTimestamp
     ? new Date(summary.latestReadingTimestamp).toLocaleTimeString()
     : new Date().toLocaleTimeString();
+
+  const fields = resolveDeviceFields(selectedDevice, summary, latestReading ? [latestReading] : []);
+
+  const getMetricStyle = (field: ReturnType<typeof resolveDeviceFields>[0]) => {
+    const labelLower = field.label.toLowerCase();
+    if (field.zone === 'cold' || (field.metric === 'temperature' && labelLower.includes('cold'))) {
+      return {
+        icon: '❄️',
+        cardBg: 'bg-gradient-to-br from-[#00a3ff]/15 to-[#00a3ff]/5 border border-[#00a3ff]/25',
+        valueColor: 'text-[var(--cold)]',
+      };
+    }
+    if (field.zone === 'hot' || (field.metric === 'temperature' && labelLower.includes('hot'))) {
+      return {
+        icon: '🔥',
+        cardBg: 'bg-gradient-to-br from-[#ff6b35]/15 to-[#ff6b35]/5 border border-[#ff6b35]/25',
+        valueColor: 'text-[var(--hot)]',
+      };
+    }
+    if (field.metric === 'humidity' || labelLower.includes('humid')) {
+      return {
+        icon: '💧',
+        cardBg: 'bg-gradient-to-br from-[#38bdf8]/15 to-[#38bdf8]/5 border border-[#38bdf8]/25',
+        valueColor: 'text-sky-400',
+      };
+    }
+    if (labelLower.includes('volt') || labelLower.includes('battery')) {
+      return {
+        icon: '⚡',
+        cardBg: 'bg-gradient-to-br from-amber-500/15 to-amber-500/5 border border-amber-500/25',
+        valueColor: 'text-amber-400',
+      };
+    }
+    return {
+      icon: '📊',
+      cardBg: 'bg-gradient-to-br from-purple-500/15 to-purple-500/5 border border-purple-500/25',
+      valueColor: 'text-purple-400',
+    };
+  };
+
+  const gridColsClass =
+    fields.length === 1
+      ? 'grid-cols-1'
+      : fields.length === 2
+      ? 'grid-cols-2'
+      : fields.length === 3
+      ? 'grid-cols-1 sm:grid-cols-3'
+      : 'grid-cols-2 sm:grid-cols-4';
 
   return (
     <div className="bg-[var(--surface)] border border-[var(--border)] rounded-[var(--radius-lg)] overflow-hidden shadow-lg shadow-black/20">
@@ -113,43 +159,39 @@ export const LiveTelemetryCard: React.FC<LiveTelemetryProps> = ({
                 <span>{readingsCount} readings loaded</span>
               </div>
 
-              {/* 2-up Big Readings Row */}
-              <div className="grid grid-cols-2 gap-2.5 mb-4">
-                <div className="rounded-[11px] p-[16px_14px_14px] bg-gradient-to-br from-[#ff6b35]/15 to-[#ff6b35]/5 border border-[#ff6b35]/25">
-                  <div className="text-[0.62rem] font-bold uppercase tracking-wider text-[var(--text)] opacity-70 flex items-center gap-1">
-                    🔥 Hot Zone Temp
-                  </div>
-                  <div className="font-display text-[1.35rem] font-bold tracking-tight my-1 leading-tight text-[var(--hot)]">
-                    <motion.span
-                      key={updatedTime + '-hot'}
-                      initial={{ opacity: 0.3 }}
-                      animate={{ opacity: 1 }}
-                      transition={{ duration: 0.12, ease: [0.16, 1, 0.3, 1] }}
-                      className="inline-block"
-                    >
-                      {hotVal}
-                    </motion.span>
-                  </div>
-                  <div className="text-[0.65rem] opacity-60 text-[var(--muted)]">field3 · ThingSpeak</div>
-                </div>
+              {/* Dynamic Big Readings Row */}
+              <div className={`grid ${gridColsClass} gap-2.5 mb-4`}>
+                {fields.map((field) => {
+                  const val = getFieldValue(field.fieldKey, field, latestReading, summary);
+                  const formattedVal = val !== null ? `${val.toFixed(2)}${field.unit}` : '—';
+                  const style = getMetricStyle(field);
 
-                <div className="rounded-[11px] p-[16px_14px_14px] bg-gradient-to-br from-[#38bdf8]/15 to-[#38bdf8]/5 border border-[#38bdf8]/25">
-                  <div className="text-[0.62rem] font-bold uppercase tracking-wider text-[var(--text)] opacity-70 flex items-center gap-1">
-                    ❄️ Cold Zone Temp
-                  </div>
-                  <div className="font-display text-[1.35rem] font-bold tracking-tight my-1 leading-tight text-[var(--cold)]">
-                    <motion.span
-                      key={updatedTime + '-cold'}
-                      initial={{ opacity: 0.3 }}
-                      animate={{ opacity: 1 }}
-                      transition={{ duration: 0.12, ease: [0.16, 1, 0.3, 1] }}
-                      className="inline-block"
+                  return (
+                    <div
+                      key={field.fieldKey}
+                      className={`rounded-[11px] p-[16px_14px_14px] ${style.cardBg}`}
                     >
-                      {coldVal}
-                    </motion.span>
-                  </div>
-                  <div className="text-[0.65rem] opacity-60 text-[var(--muted)]">field1 · ThingSpeak</div>
-                </div>
+                      <div className="text-[0.62rem] font-bold uppercase tracking-wider text-[var(--text)] opacity-70 flex items-center gap-1 truncate" title={field.label}>
+                        <span>{style.icon}</span>
+                        <span className="truncate">{field.label}</span>
+                      </div>
+                      <div className={`font-display text-[1.35rem] font-bold tracking-tight my-1 leading-tight ${style.valueColor}`}>
+                        <motion.span
+                          key={`${updatedTime}-${field.fieldKey}`}
+                          initial={{ opacity: 0.3 }}
+                          animate={{ opacity: 1 }}
+                          transition={{ duration: 0.12, ease: EASE_OUT }}
+                          className="inline-block"
+                        >
+                          {formattedVal}
+                        </motion.span>
+                      </div>
+                      <div className="text-[0.65rem] opacity-60 text-[var(--muted)] truncate">
+                        {field.fieldKey} · ThingSpeak
+                      </div>
+                    </div>
+                  );
+                })}
               </div>
             </div>
           </motion.div>

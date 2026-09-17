@@ -1,6 +1,7 @@
 import React, { useState, useMemo, useRef, useEffect } from 'react';
 import { LineChart, Calendar, AlertCircle } from 'lucide-react';
 import { SensorReading, DeviceFieldMapping } from '../types';
+import { resolveDeviceFields } from '../utils/telemetry';
 
 interface TelemetryChartProps {
   readings: SensorReading[];
@@ -65,7 +66,6 @@ export const TelemetryChart: React.FC<TelemetryChartProps> = ({
   const [animationStarted, setAnimationStarted] = useState<boolean>(false);
 
   useEffect(() => {
-    // Reset initial render tracking whenever selected bag/device ID changes
     if (prevDeviceIdRef.current !== deviceId) {
       prevDeviceIdRef.current = deviceId;
       isInitialRenderRef.current = true;
@@ -75,12 +75,10 @@ export const TelemetryChart: React.FC<TelemetryChartProps> = ({
       setIsInitialDraw(true);
       setAnimationStarted(false);
 
-      // Delay chart line draw-in start by ~180ms (so LiveTelemetryCard crossfade finishes first)
       const startTimer = setTimeout(() => {
         setAnimationStarted(true);
       }, 180);
 
-      // Complete line draw sequence after 180ms delay + 700ms draw duration = 880ms
       const completeTimer = setTimeout(() => {
         setIsInitialDraw(false);
         isInitialRenderRef.current = false;
@@ -101,97 +99,44 @@ export const TelemetryChart: React.FC<TelemetryChartProps> = ({
   const chartWidth = width - padding.left - padding.right;
   const chartHeight = height - padding.top - padding.bottom;
 
-  // Build series definitions based on fieldMappings or discovered fieldValues in readings
+  // Build series definitions based on resolved field mappings & discovered readings
   const seriesDefs: SeriesDef[] = useMemo(() => {
-    if (fieldMappings && fieldMappings.length > 0) {
-      return fieldMappings.map((m, idx) => {
-        let color = COLOR_PALETTE[idx % COLOR_PALETTE.length];
-        if (m.zone === 'cold') color = '#00a3ff';
-        else if (m.zone === 'hot') color = '#ff6b00';
-        else if (m.metric === 'humidity') color = '#38bdf8';
-        else if (m.zone === 'ambient') color = '#10b981';
+    const resolved = resolveDeviceFields(
+      fieldMappings ? ({ fieldMappings } as any) : null,
+      null,
+      readings
+    );
 
-        const unit = m.unit || (m.metric === 'temperature' ? '°C' : m.metric === 'humidity' ? '%' : '');
+    return resolved.map((field, idx) => {
+      let color = COLOR_PALETTE[idx % COLOR_PALETTE.length];
+      if (field.zone === 'cold') color = '#00a3ff';
+      else if (field.zone === 'hot') color = '#ff6b00';
+      else if (field.metric === 'humidity') color = '#38bdf8';
+      else if (field.zone === 'ambient') color = '#10b981';
 
-        return {
-          key: m.fieldKey,
-          label: m.label,
-          unit,
-          color,
-          gradientId: `gradient_${m.fieldKey}`,
-          getValue: (r: SensorReading) => {
-            if (r.fieldValues && r.fieldValues[m.fieldKey] !== undefined && r.fieldValues[m.fieldKey] !== null) {
-              return toFiniteNumber(r.fieldValues[m.fieldKey]);
-            }
-            if (m.zone === 'cold') return r.coldTemperature;
-            if (m.zone === 'hot') return r.hotTemperature;
-            if (m.metric === 'humidity') return r.humidity;
-            return null;
-          },
-        };
-      });
-    }
-
-    // Auto-discover active numeric field keys from readings.fieldValues
-    const activeFieldKeys = new Set<string>();
-    readings.forEach((r) => {
-      if (r.fieldValues && typeof r.fieldValues === 'object') {
-        Object.keys(r.fieldValues).forEach((k) => {
-          if (k.startsWith('field')) {
-            const v = r.fieldValues![k];
-            if (toFiniteNumber(v) !== null) {
-              activeFieldKeys.add(k);
-            }
+      return {
+        key: field.fieldKey,
+        label: field.label,
+        unit: field.unit,
+        color,
+        gradientId: `gradient_${field.fieldKey}`,
+        getValue: (r: SensorReading) => {
+          if (r.fieldValues && r.fieldValues[field.fieldKey] !== undefined && r.fieldValues[field.fieldKey] !== null) {
+            return toFiniteNumber(r.fieldValues[field.fieldKey]);
           }
-        });
-      }
+          if (field.zone === 'cold' || (field.fieldKey === 'field1' && field.metric === 'temperature')) {
+            return toFiniteNumber(r.coldTemperature);
+          }
+          if (field.zone === 'hot' || (field.fieldKey === 'field3' && field.metric === 'temperature')) {
+            return toFiniteNumber(r.hotTemperature);
+          }
+          if (field.metric === 'humidity' || field.fieldKey === 'field4') {
+            return toFiniteNumber(r.humidity);
+          }
+          return null;
+        },
+      };
     });
-
-    if (activeFieldKeys.size > 0) {
-      const sortedKeys = Array.from(activeFieldKeys).sort();
-      return sortedKeys.map((key, idx) => {
-        const num = Number(key.replace('field', '')) || 1;
-        const color = COLOR_PALETTE[idx % COLOR_PALETTE.length];
-        return {
-          key,
-          label: `Field ${num}`,
-          unit: '',
-          color,
-          gradientId: `gradient_${key}`,
-          getValue: (r: SensorReading) => {
-            const val = r.fieldValues?.[key];
-            return toFiniteNumber(val);
-          },
-        };
-      });
-    }
-
-    return [
-      {
-        key: 'cold',
-        label: 'Cold',
-        unit: '°C',
-        color: '#00a3ff',
-        gradientId: 'coldGradient',
-        getValue: (r: SensorReading) => r.coldTemperature,
-      },
-      {
-        key: 'hot',
-        label: 'Hot',
-        unit: '°C',
-        color: '#ff6b00',
-        gradientId: 'hotGradient',
-        getValue: (r: SensorReading) => r.hotTemperature,
-      },
-      {
-        key: 'humidity',
-        label: 'Humidity',
-        unit: '%',
-        color: '#38bdf8',
-        gradientId: 'humidityGradient',
-        getValue: (r: SensorReading) => r.humidity,
-      },
-    ];
   }, [fieldMappings, readings]);
 
   // Reset active channel filter if current selection is invalid
@@ -231,7 +176,6 @@ export const TelemetryChart: React.FC<TelemetryChartProps> = ({
     };
   }, [readings, seriesDefs, validActiveChannel]);
 
-  // Coordinate scales
   const getX = (index: number) => {
     if (readings.length <= 1) return padding.left + chartWidth / 2;
     return padding.left + (index / (readings.length - 1)) * chartWidth;
@@ -243,7 +187,6 @@ export const TelemetryChart: React.FC<TelemetryChartProps> = ({
     return padding.top + chartHeight - ratio * chartHeight;
   };
 
-  // Handle touch drag on mobile
   const handleTouch = (e: React.TouchEvent<SVGSVGElement>) => {
     if (!svgRef.current || readings.length === 0) return;
     const rect = svgRef.current.getBoundingClientRect();
@@ -265,7 +208,6 @@ export const TelemetryChart: React.FC<TelemetryChartProps> = ({
     }
   };
 
-  // Generate SVG path for a series
   const generatePath = (s: SeriesDef) => {
     let d = '';
     let isDrawing = false;
@@ -289,7 +231,6 @@ export const TelemetryChart: React.FC<TelemetryChartProps> = ({
     return d;
   };
 
-  // Generate SVG gradient area path under line
   const generateAreaPath = (s: SeriesDef) => {
     const linePath = generatePath(s);
     if (!linePath) return '';
@@ -316,7 +257,7 @@ export const TelemetryChart: React.FC<TelemetryChartProps> = ({
           </span>
         </div>
 
-        {/* Time Range Selector & Metric Tabs */}
+        {/* Time Range Selector & Channel Filter Tabs */}
         <div className="flex flex-wrap items-center gap-1.5 sm:gap-2 w-full sm:w-auto justify-between sm:justify-end">
           {/* Channel Filters */}
           <div className="flex flex-wrap items-center bg-[#07080a] p-0.5 rounded-lg border border-white/[0.08] text-[11px] sm:text-xs font-body gap-0.5">
@@ -488,8 +429,6 @@ export const TelemetryChart: React.FC<TelemetryChartProps> = ({
               if (!isVisible) return null;
               const targetOpacity = isVisible ? 1 : 0.2;
 
-              // On first render for a given bag: ~700ms duration with easeOutQuart [0.25, 1, 0.5, 1], delayed by ~180ms
-              // On subsequent live poll updates: ~300ms transition without full stroke-dashoffset redraw
               const lineStyle: React.CSSProperties = isInitialDraw
                 ? {
                     strokeDasharray: 1000,
@@ -622,7 +561,7 @@ export const TelemetryChart: React.FC<TelemetryChartProps> = ({
               style={{ color: isActive ? s.color : undefined, fontWeight: isActive ? 'bold' : 'normal' }}
             >
               <span className="w-3 h-1 rounded-full" style={{ backgroundColor: s.color }} />
-              <span>{s.label} ({s.unit})</span>
+              <span>{s.label}{s.unit ? ` (${s.unit})` : ''}</span>
             </button>
           );
         })}
