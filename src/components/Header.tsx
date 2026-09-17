@@ -116,16 +116,18 @@ export const Header: React.FC<HeaderProps> = ({
 
         {/* Auth / Account Profile */}
         {isAuthenticated && user ? (
-          <div className="flex items-center gap-1.5 pl-2 border-l border-[#171512]/10">
-            <span className="hidden xl:inline text-xs font-bold text-[#171512] line-clamp-1 max-w-[100px]">
-              {user.name}
-            </span>
+          <div className="flex items-center gap-2 pl-2.5 border-l border-[#171512]/10">
+            <div className="hidden sm:flex items-center gap-1.5 text-xs font-semibold text-[#171512] font-body bg-[#FFF9EF] px-2.5 py-1 rounded-full border border-[#171512]/08 shadow-xs">
+              <span className="w-1.5 h-1.5 rounded-full bg-[#10B981]" />
+              <span className="truncate max-w-[110px]">{user.name}</span>
+            </div>
             <button
               onClick={logout}
-              title="Sign out"
-              className="p-1.5 text-[#7B746A] hover:text-[#171512] hover:bg-[#171512]/05 active:scale-[0.95] rounded-lg transition-[transform,color,background-color] duration-[var(--dur-fast)] ease-[var(--ease-out)] cursor-pointer"
+              title="Sign out of INFINOS"
+              className="flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold text-[#7B746A] hover:text-[#FC4731] hover:bg-[#FC4731]/10 border border-[#171512]/08 transition-all duration-[var(--dur-fast)] ease-[var(--ease-out)] active:scale-[0.96] cursor-pointer"
             >
               <LogOut className="w-3.5 h-3.5" />
+              <span className="hidden sm:inline">Sign Out</span>
             </button>
           </div>
         ) : (
