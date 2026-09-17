@@ -1,6 +1,6 @@
 import React from 'react';
 import logoImg from '../assets/logo.png';
-import { LogOut, LogIn, User } from 'lucide-react';
+import { LogOut, LogIn } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { SafeDevice } from '../types';
 
@@ -30,60 +30,68 @@ export const Header: React.FC<HeaderProps> = ({
   const { user, isAuthenticated, logout } = useAuth();
 
   return (
-    <nav className="sticky top-0 z-[200] flex items-center justify-between px-4 sm:px-6 h-[52px] bg-[var(--nav-bg)] backdrop-blur-xl border-b border-[var(--border)] transition-[background-color,border-color] duration-[var(--dur-base)] ease-[var(--ease-out)] select-none">
+    <nav className="sticky top-0 z-[200] flex items-center justify-between px-4 sm:px-8 h-[58px] bg-[#F8F3E8]/90 backdrop-blur-xl border-b border-[#171512]/10 transition-[background-color,border-color] duration-[var(--dur-base)] ease-[var(--ease-out)] select-none">
       {/* Left: Brand Identity */}
-      <div className="flex items-center gap-2 cursor-pointer transition-[transform,opacity] duration-[var(--dur-fast)] ease-[var(--ease-out)] active:scale-[0.98]" onClick={() => onSelectNavTab('dashboard')}>
-        <div className="w-[26px] h-[26px] rounded-[7px] bg-gradient-to-br from-[#ff7c50] to-[#ff3d00] flex items-center justify-center shadow-md shadow-orange-500/30 overflow-hidden shrink-0">
+      <div
+        className="flex items-center gap-2.5 cursor-pointer transition-[transform,opacity] duration-[var(--dur-fast)] ease-[var(--ease-out)] active:scale-[0.98]"
+        onClick={() => onSelectNavTab('dashboard')}
+      >
+        <div className="w-7 h-7 rounded-lg bg-[#FC4731] flex items-center justify-center shadow-sm shadow-[#FC4731]/20 overflow-hidden shrink-0">
           <img src={logoImg} alt="INFINOS logo" className="w-full h-full object-cover" />
         </div>
-        <span className="font-display font-bold text-[0.95rem] tracking-tight text-[var(--text)]">
-          INFINOS
-        </span>
+        <div className="flex items-baseline gap-1.5">
+          <span className="font-editorial text-xl sm:text-2xl font-bold tracking-tight text-[#171512]">
+            INFINOS
+          </span>
+          <span className="text-[10px] font-bold uppercase tracking-widest text-[#7B746A] hidden xs:inline">
+            Telemetry
+          </span>
+        </div>
       </div>
 
       {/* Center: Absolutely Centered Nav Links (Desktop & Tablet) */}
-      <div className="hidden md:flex items-center gap-1 absolute left-1/2 -translate-x-1/2">
+      <div className="hidden md:flex items-center gap-1.5 absolute left-1/2 -translate-x-1/2 bg-[#FFF9EF] p-1 rounded-full border border-[#171512]/08 shadow-xs">
         <button
           onClick={() => onSelectNavTab('dashboard')}
-          className={`px-3 py-1 rounded-full text-xs font-medium cursor-pointer transition-[transform,color,background-color] duration-[var(--dur-fast)] ease-[var(--ease-out)] active:scale-[0.98] ${
+          className={`px-3.5 py-1 rounded-full text-xs font-semibold cursor-pointer transition-[transform,color,background-color] duration-[var(--dur-fast)] ease-[var(--ease-out)] active:scale-[0.97] ${
             activeNavTab === 'dashboard'
-              ? 'text-[var(--orange)] bg-[var(--orange-dim)] font-semibold'
-              : 'text-[var(--muted)] hover:text-[var(--text)] hover:bg-white/5'
+              ? 'text-[#FC4731] bg-[#FC4731]/10 font-bold'
+              : 'text-[#7B746A] hover:text-[#171512] hover:bg-[#171512]/05'
           }`}
         >
           Dashboard
         </button>
         <button
           onClick={() => onSelectNavTab('devices')}
-          className={`px-3 py-1 rounded-full text-xs font-medium cursor-pointer transition-[transform,color,background-color] duration-[var(--dur-fast)] ease-[var(--ease-out)] active:scale-[0.98] ${
+          className={`px-3.5 py-1 rounded-full text-xs font-semibold cursor-pointer transition-[transform,color,background-color] duration-[var(--dur-fast)] ease-[var(--ease-out)] active:scale-[0.97] ${
             activeNavTab === 'devices'
-              ? 'text-[var(--orange)] bg-[var(--orange-dim)] font-semibold'
-              : 'text-[var(--muted)] hover:text-[var(--text)] hover:bg-white/5'
+              ? 'text-[#FC4731] bg-[#FC4731]/10 font-bold'
+              : 'text-[#7B746A] hover:text-[#171512] hover:bg-[#171512]/05'
           }`}
         >
           Devices
         </button>
         <button
           onClick={() => onSelectNavTab('analytics')}
-          className={`px-3 py-1 rounded-full text-xs font-medium cursor-pointer transition-[transform,color,background-color] duration-[var(--dur-fast)] ease-[var(--ease-out)] active:scale-[0.98] ${
+          className={`px-3.5 py-1 rounded-full text-xs font-semibold cursor-pointer transition-[transform,color,background-color] duration-[var(--dur-fast)] ease-[var(--ease-out)] active:scale-[0.97] ${
             activeNavTab === 'analytics'
-              ? 'text-[var(--orange)] bg-[var(--orange-dim)] font-semibold'
-              : 'text-[var(--muted)] hover:text-[var(--text)] hover:bg-white/5'
+              ? 'text-[#FC4731] bg-[#FC4731]/10 font-bold'
+              : 'text-[#7B746A] hover:text-[#171512] hover:bg-[#171512]/05'
           }`}
         >
           Analytics
         </button>
         <button
           onClick={() => onSelectNavTab('alerts')}
-          className={`px-3 py-1 rounded-full text-xs font-medium cursor-pointer transition-[transform,color,background-color] duration-[var(--dur-fast)] ease-[var(--ease-out)] active:scale-[0.98] flex items-center gap-1.5 ${
+          className={`px-3.5 py-1 rounded-full text-xs font-semibold cursor-pointer transition-[transform,color,background-color] duration-[var(--dur-fast)] ease-[var(--ease-out)] active:scale-[0.97] flex items-center gap-1.5 ${
             activeNavTab === 'alerts'
-              ? 'text-[var(--orange)] bg-[var(--orange-dim)] font-semibold'
-              : 'text-[var(--muted)] hover:text-[var(--text)] hover:bg-white/5'
+              ? 'text-[#FC4731] bg-[#FC4731]/10 font-bold'
+              : 'text-[#7B746A] hover:text-[#171512] hover:bg-[#171512]/05'
           }`}
         >
           <span>Alerts</span>
           {activeAlertsCount > 0 && (
-            <span className="px-1.5 py-0.2 rounded-full text-[9px] bg-rose-500 text-white font-bold">
+            <span className="px-1.5 py-0.2 rounded-full text-[9px] bg-[#E11D48] text-white font-bold">
               {activeAlertsCount}
             </span>
           )}
@@ -91,49 +99,31 @@ export const Header: React.FC<HeaderProps> = ({
       </div>
 
       {/* Right: Actions */}
-      <div className="flex items-center gap-2">
+      <div className="flex items-center gap-2.5">
         {/* LIVE Indicator Pill */}
-        <div className="hidden sm:flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-[10px] font-bold tracking-wide">
-          <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-live-blink" />
+        <div className="hidden sm:flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-[#10B981]/10 border border-[#10B981]/20 text-[#10B981] text-[10px] font-bold tracking-wide">
+          <span className="w-1.5 h-1.5 rounded-full bg-[#10B981] animate-live-blink" />
           <span>LIVE</span>
         </div>
-
-        {/* Theme Toggle Button */}
-        <button
-          onClick={onToggleTheme}
-          aria-label="Toggle theme"
-          title="Toggle light/dark mode"
-          className="w-8 h-8 rounded-lg bg-[var(--surface2)] border border-[var(--border)] text-[var(--muted)] hover:text-[var(--text)] hover:border-[var(--border-strong)] hover:rotate-12 active:rotate-0 active:scale-[0.95] flex items-center justify-center cursor-pointer transition-[transform,color,background-color,border-color] duration-[var(--dur-fast)] ease-[var(--ease-out)]"
-        >
-          {isLightMode ? (
-            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/>
-            </svg>
-          ) : (
-            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>
-            </svg>
-          )}
-        </button>
 
         {/* Claim Bag Primary Button */}
         <button
           onClick={onOpenAddDevice}
-          className="px-3.5 py-1.5 rounded-full bg-gradient-to-r from-[var(--orange)] to-[#e83800] text-white font-body text-xs font-semibold shadow-md shadow-orange-500/25 hover:-translate-y-0.5 hover:shadow-orange-500/40 active:translate-y-0 active:scale-[0.97] active:shadow-none cursor-pointer transition-[transform,box-shadow] duration-[var(--dur-base)] ease-[var(--ease-out)] whitespace-nowrap"
+          className="px-4 py-1.5 rounded-full bg-[#FC4731] text-white font-body text-xs font-bold shadow-sm shadow-[#FC4731]/25 hover:-translate-y-0.5 hover:bg-[#e03a25] active:translate-y-0 active:scale-[0.97] active:shadow-none cursor-pointer transition-[transform,box-shadow,background-color] duration-[var(--dur-base)] ease-[var(--ease-out)] whitespace-nowrap"
         >
           + Claim Bag
         </button>
 
         {/* Auth / Account Profile */}
         {isAuthenticated && user ? (
-          <div className="flex items-center gap-1.5 pl-2 border-l border-[var(--border)]">
-            <span className="hidden xl:inline text-xs font-medium text-[var(--text)] line-clamp-1 max-w-[100px]">
+          <div className="flex items-center gap-1.5 pl-2 border-l border-[#171512]/10">
+            <span className="hidden xl:inline text-xs font-bold text-[#171512] line-clamp-1 max-w-[100px]">
               {user.name}
             </span>
             <button
               onClick={logout}
               title="Sign out"
-              className="p-1.5 text-[var(--muted)] hover:text-[var(--text)] hover:bg-[var(--surface2)] active:scale-[0.95] rounded-lg transition-[transform,color,background-color] duration-[var(--dur-fast)] ease-[var(--ease-out)] cursor-pointer"
+              className="p-1.5 text-[#7B746A] hover:text-[#171512] hover:bg-[#171512]/05 active:scale-[0.95] rounded-lg transition-[transform,color,background-color] duration-[var(--dur-fast)] ease-[var(--ease-out)] cursor-pointer"
             >
               <LogOut className="w-3.5 h-3.5" />
             </button>
@@ -141,7 +131,7 @@ export const Header: React.FC<HeaderProps> = ({
         ) : (
           <button
             onClick={onOpenAuth}
-            className="p-1.5 text-[var(--muted)] hover:text-[var(--text)] hover:bg-[var(--surface2)] active:scale-[0.95] rounded-lg transition-[transform,color,background-color] duration-[var(--dur-fast)] ease-[var(--ease-out)] cursor-pointer text-xs font-medium flex items-center gap-1"
+            className="p-1.5 text-[#7B746A] hover:text-[#171512] hover:bg-[#171512]/05 active:scale-[0.95] rounded-lg transition-[transform,color,background-color] duration-[var(--dur-fast)] ease-[var(--ease-out)] cursor-pointer text-xs font-semibold flex items-center gap-1"
             title="Sign In"
           >
             <LogIn className="w-3.5 h-3.5" />

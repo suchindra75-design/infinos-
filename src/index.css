@@ -1,12 +1,13 @@
 @import "tailwindcss";
 
 @theme {
-  --font-sans: "DM Sans", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-  --font-display: "Syne", -apple-system, BlinkMacSystemFont, sans-serif;
+  --font-sans: "Manrope", "DM Sans", -apple-system, BlinkMacSystemFont, sans-serif;
+  --font-editorial: "Instrument Serif", Georgia, serif;
+  --font-display: "Manrope", -apple-system, BlinkMacSystemFont, sans-serif;
   --font-mono: "JetBrains Mono", monospace;
 }
 
-/* ── MOTION DESIGN TOKENS ── */
+/* ── MOTION & COLOR DESIGN TOKENS ── */
 :root {
   --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
   --ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
@@ -15,50 +16,43 @@
   --dur-base: 200ms;
   --dur-slow: 320ms;
 
-  --orange: #FF6B35;
-  --orange-dim: rgba(255, 107, 53, 0.12);
-  --dark: #060709;
-  --surface: #0f1117;
-  --surface2: #14171f;
-  --surface3: #1c2029;
-  --border: rgba(255, 255, 255, 0.08);
-  --border-strong: rgba(255, 255, 255, 0.16);
-  --text: #F0F1F5;
-  --muted: #6b7080;
-  --hot: #FF6B35;
-  --cold: #38BDF8;
-  --green: #34D399;
-  --red: #F87171;
-  --radius: 12px;
-  --radius-lg: 16px;
-  --nav-bg: rgba(6, 7, 9, 0.88);
-  --modal-bg: rgba(0, 0, 0, 0.72);
-  --grid-line: rgba(255, 107, 53, 0.028);
-  --chart-grid: rgba(255, 255, 255, 0.03);
-  --chart-tick: #6b7080;
+  --orange: #FC4731;
+  --orange-dim: rgba(252, 71, 49, 0.08);
+  --cream: #F8F3E8;
+  --surface: #FFF9EF;
+  --surface2: #F2ECE0;
+  --surface3: #EAE3D5;
+  --border: rgba(23, 21, 18, 0.08);
+  --border-strong: rgba(23, 21, 18, 0.16);
+  --text: #171512;
+  --muted: #7B746A;
+  --hot: #FC4731;
+  --cold: #0284C7;
+  --humidity: #0EA5E9;
+  --green: #10B981;
+  --red: #E11D48;
+  --radius: 14px;
+  --radius-lg: 20px;
+  --nav-bg: rgba(248, 243, 232, 0.92);
+  --modal-bg: rgba(23, 21, 18, 0.45);
+  --grid-line: rgba(23, 21, 18, 0.035);
+  --chart-grid: rgba(23, 21, 18, 0.05);
+  --chart-tick: #7B746A;
 }
 
-/* ── LIGHT THEME ── */
-html.light {
-  --orange: #E85D20;
-  --orange-dim: rgba(232, 93, 32, 0.10);
-  --dark: #F4F5F7;
-  --surface: #FFFFFF;
-  --surface2: #F0F1F4;
-  --surface3: #E4E6EC;
-  --border: rgba(0, 0, 0, 0.08);
-  --border-strong: rgba(0, 0, 0, 0.16);
-  --text: #111318;
-  --muted: #7A7F8E;
-  --hot: #D94F0F;
-  --cold: #0284C7;
-  --green: #059669;
-  --red: #DC2626;
-  --nav-bg: rgba(244, 245, 247, 0.90);
-  --modal-bg: rgba(0, 0, 0, 0.45);
-  --grid-line: rgba(232, 93, 32, 0.04);
-  --chart-grid: rgba(0, 0, 0, 0.04);
-  --chart-tick: #9ca3af;
+/* Dark mode overrides (optional fallback keeping warm editorial depth) */
+html.dark {
+  --cream: #141210;
+  --surface: #1E1B18;
+  --surface2: #282420;
+  --surface3: #322D28;
+  --border: rgba(255, 249, 239, 0.08);
+  --border-strong: rgba(255, 249, 239, 0.16);
+  --text: #F8F3E8;
+  --muted: #A0988E;
+  --nav-bg: rgba(20, 18, 16, 0.92);
+  --modal-bg: rgba(0, 0, 0, 0.65);
+  --grid-line: rgba(252, 71, 49, 0.035);
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -74,7 +68,6 @@ html.light {
   box-sizing: border-box;
 }
 
-/* Global smooth transition for theme switches */
 body, nav, main, div, button, input, select, section, header, footer {
   transition-property: background-color, border-color, color, stroke, fill;
   transition-duration: var(--dur-base);
@@ -92,8 +85,8 @@ html {
 }
 
 body {
-  font-family: 'DM Sans', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-  background-color: var(--dark);
+  font-family: 'Manrope', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  background-color: var(--cream);
   color: var(--text);
   min-height: 100vh;
   overflow-x: hidden;
@@ -110,18 +103,22 @@ body::before {
   background-image:
     linear-gradient(var(--grid-line) 1px, transparent 1px),
     linear-gradient(90deg, var(--grid-line) 1px, transparent 1px);
-  background-size: 44px 44px;
+  background-size: 48px 48px;
   pointer-events: none;
   z-index: 0;
 }
 
 /* Typography Utility Classes */
+.font-editorial {
+  font-family: "Instrument Serif", Georgia, serif;
+}
+
 .font-display {
-  font-family: "Syne", sans-serif;
+  font-family: "Manrope", sans-serif;
 }
 
 .font-body {
-  font-family: "DM Sans", sans-serif;
+  font-family: "Manrope", sans-serif;
 }
 
 .font-data {
@@ -137,7 +134,7 @@ body::before {
   bottom: env(safe-area-inset-bottom, 0px);
 }
 
-/* Card Surface Helpers */
+/* Tactile Editorial Card Styles */
 .infinos-card {
   background-color: var(--surface);
   border: 1px solid var(--border);
@@ -148,12 +145,7 @@ body::before {
 .infinos-card:hover {
   border-color: var(--border-strong);
   transform: translateY(-1px);
-  box-shadow: 0 10px 30px -10px rgba(0, 0, 0, 0.4);
-}
-
-/* SVG Chart Path Transition */
-.chart-path-transition {
-  transition: stroke var(--dur-base) var(--ease-out), stroke-width var(--dur-base) var(--ease-out), opacity var(--dur-base) var(--ease-out);
+  box-shadow: 0 12px 32px -8px rgba(23, 21, 18, 0.06);
 }
 
 /* Pulse animation for LIVE indicator */
@@ -182,11 +174,11 @@ body::before {
 }
 
 ::-webkit-scrollbar-track {
-  background: var(--dark);
+  background: var(--cream);
 }
 
 ::-webkit-scrollbar-thumb {
-  background: var(--surface3);
+  background: var(--surface2);
   border-radius: 3px;
 }
 

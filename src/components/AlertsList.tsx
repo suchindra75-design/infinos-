@@ -1,235 +1,219 @@
-import React, { useState } from 'react';
-import {
-  AlertTriangle,
-  CheckCircle2,
-  Clock,
-  Filter,
-  Check,
-  AlertCircle,
-  ShieldAlert,
-} from 'lucide-react';
-import { Alert, AlertSeverity } from '../types';
-import { useAuth } from '../context/AuthContext';
+import React, { useState, useMemo } from 'react';
+import { AlertTriangle, CheckCircle2, ShieldAlert, Filter, Clock } from 'lucide-react';
+import { Alert as AlertType } from '../types';
 
 interface AlertsListProps {
-  alerts: Alert[];
+  alerts: AlertType[];
   isLoading: boolean;
-  onResolveAlert: (alertId: string) => Promise<void>;
-  filterScope: 'device' | 'all';
-  onChangeFilterScope: (scope: 'device' | 'all') => void;
-  selectedDeviceCode?: string;
+  error: string | null;
+  onAcknowledgeAlert?: (alertId: string) => Promise<void>;
+  onResolveAlert?: (alertId: string) => Promise<void>;
 }
 
 export const AlertsList: React.FC<AlertsListProps> = ({
   alerts,
   isLoading,
+  error,
+  onAcknowledgeAlert,
   onResolveAlert,
-  filterScope,
-  onChangeFilterScope,
-  selectedDeviceCode,
 }) => {
-  const { user, isAuthenticated } = useAuth();
-  const [resolvingId, setResolvingId] = useState<string | null>(null);
-  const [statusFilter, setStatusFilter] = useState<'all' | 'active' | 'resolved'>('all');
-  const [severityFilter, setSeverityFilter] = useState<'all' | 'CRITICAL' | 'WARNING'>('all');
+  const [filterScope, setFilterScope] = useState<'all' | 'unresolved' | 'critical'>('unresolved');
+  const [actioningId, setActioningId] = useState<string | null>(null);
 
-  const canResolve = isAuthenticated && (user?.role === 'ADMIN' || user?.role === 'OPERATOR');
+  const filteredAlerts = useMemo(() => {
+    return alerts.filter((alert) => {
+      if (filterScope === 'unresolved') return !alert.isResolved;
+      if (filterScope === 'critical') return alert.severity === 'CRITICAL' && !alert.isResolved;
+      return true;
+    });
+  }, [alerts, filterScope]);
 
-  const handleResolve = async (id: string) => {
-    setResolvingId(id);
+  const unresolvedCount = useMemo(() => alerts.filter((a) => !a.isResolved).length, [alerts]);
+  const criticalCount = useMemo(() => alerts.filter((a) => a.severity === 'CRITICAL' && !a.isResolved).length, [alerts]);
+
+  const handleAcknowledge = async (id: string) => {
+    if (!onAcknowledgeAlert) return;
+    setActioningId(id);
     try {
-      await onResolveAlert(id);
+      await onAcknowledgeAlert(id);
     } finally {
-      setResolvingId(null);
+      setActioningId(null);
     }
   };
 
-  const filteredAlerts = alerts.filter((a) => {
-    if (statusFilter === 'active' && a.isResolved) return false;
-    if (statusFilter === 'resolved' && !a.isResolved) return false;
-    if (severityFilter !== 'all' && a.severity !== severityFilter) return false;
-    return true;
-  });
+  const handleResolve = async (id: string) => {
+    if (!onResolveAlert) return;
+    setActioningId(id);
+    try {
+      await onResolveAlert(id);
+    } finally {
+      setActioningId(null);
+    }
+  };
 
-  const getSeverityBadge = (severity: AlertSeverity) => {
+  const getSeverityBadge = (severity: AlertType['severity']) => {
     switch (severity) {
       case 'CRITICAL':
         return (
-          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[9px] sm:text-[10px] font-bold bg-rose-500/20 text-rose-300 border border-rose-500/40 uppercase shrink-0">
-            <ShieldAlert className="w-3 h-3 text-rose-400" />
-            CRITICAL
+          <span className="px-2.5 py-0.5 rounded-md bg-[#E11D48]/10 border border-[#E11D48]/25 text-[#E11D48] text-[10px] font-extrabold uppercase tracking-wider">
+            Critical
           </span>
         );
       case 'WARNING':
         return (
-          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[9px] sm:text-[10px] font-bold bg-amber-500/20 text-amber-300 border border-amber-500/40 uppercase shrink-0">
-            <AlertTriangle className="w-3 h-3 text-amber-400" />
-            WARNING
+          <span className="px-2.5 py-0.5 rounded-md bg-[#FC4731]/10 border border-[#FC4731]/25 text-[#FC4731] text-[10px] font-extrabold uppercase tracking-wider">
+            Warning
           </span>
         );
       default:
         return (
-          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[9px] sm:text-[10px] font-medium bg-blue-500/10 text-blue-300 border border-blue-500/30 uppercase shrink-0">
-            INFO
+          <span className="px-2.5 py-0.5 rounded-md bg-[#0284C7]/10 border border-[#0284C7]/25 text-[#0284C7] text-[10px] font-extrabold uppercase tracking-wider">
+            Info
           </span>
         );
     }
   };
 
-  const formatDate = (dateStr: string) => {
-    return new Date(dateStr).toLocaleString([], {
-      month: 'short',
-      day: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit',
-    });
-  };
-
   return (
-    <div className="bg-[#0e1014] border border-white/[0.08] rounded-xl p-3.5 sm:p-5 space-y-3 sm:space-y-4 shadow-lg shadow-black/30">
-      {/* Header & Controls */}
-      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2.5">
+    <div className="bg-[#FFF9EF] border border-[#171512]/10 rounded-2xl p-4 sm:p-6 space-y-4 shadow-md shadow-[#171512]/04">
+      {/* Header & Scope Filter */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div className="flex items-center gap-2">
-          <AlertTriangle className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-rose-400 shrink-0" />
-          <h3 className="text-[11px] sm:text-xs font-bold uppercase tracking-wider text-zinc-300 font-display">
-            System Alerts & Incidents
+          <ShieldAlert className="w-5 h-5 text-[#FC4731] shrink-0" />
+          <h3 className="text-xs font-bold uppercase tracking-widest text-[#171512] font-display">
+            Automated Incident Log
           </h3>
-          <span className="text-[10px] sm:text-xs text-zinc-500 font-data">
-            ({filteredAlerts.length} total)
-          </span>
+          <span className="text-xs text-[#7B746A] font-mono">({filteredAlerts.length})</span>
         </div>
 
-        {/* Filters */}
-        <div className="flex flex-wrap items-center gap-1.5 sm:gap-2 font-body w-full sm:w-auto justify-between sm:justify-end">
-          {/* Scope Toggle */}
-          <div className="flex items-center bg-[#07080a] p-0.5 rounded-lg border border-white/[0.08] text-[11px] sm:text-xs">
-            <button
-              onClick={() => onChangeFilterScope('device')}
-              className={`px-2 sm:px-2.5 py-1 rounded font-medium transition-[transform,background-color,color] duration-[var(--dur-fast)] ease-[var(--ease-out)] active:scale-[0.96] cursor-pointer ${
-                filterScope === 'device'
-                  ? 'bg-zinc-800 text-white font-semibold'
-                  : 'text-zinc-400 hover:text-zinc-200'
-              }`}
-            >
-              {selectedDeviceCode ? `Bag: ${selectedDeviceCode}` : 'Active Bag'}
-            </button>
-            <button
-              onClick={() => onChangeFilterScope('all')}
-              className={`px-2 sm:px-2.5 py-1 rounded font-medium transition-[transform,background-color,color] duration-[var(--dur-fast)] ease-[var(--ease-out)] active:scale-[0.96] cursor-pointer ${
-                filterScope === 'all'
-                  ? 'bg-zinc-800 text-white font-semibold'
-                  : 'text-zinc-400 hover:text-zinc-200'
-              }`}
-            >
-              Fleetwide
-            </button>
-          </div>
+        {/* Scope Selector Tabs */}
+        <div className="flex items-center bg-[#F2ECE0] p-1 rounded-xl border border-[#171512]/06 text-xs font-body">
+          <button
+            onClick={() => setFilterScope('unresolved')}
+            className={`px-3 py-1 rounded-lg font-bold transition-[background-color,color] duration-[var(--dur-fast)] ease-[var(--ease-out)] cursor-pointer flex items-center gap-1.5 ${
+              filterScope === 'unresolved'
+                ? 'bg-[#FC4731] text-white shadow-xs'
+                : 'text-[#7B746A] hover:text-[#171512]'
+            }`}
+          >
+            <span>Unresolved</span>
+            {unresolvedCount > 0 && (
+              <span className="px-1.5 py-0.2 rounded-full text-[9px] bg-white text-[#FC4731] font-bold">
+                {unresolvedCount}
+              </span>
+            )}
+          </button>
 
-          <div className="flex items-center gap-1.5">
-            {/* Status Filter */}
-            <select
-              value={statusFilter}
-              onChange={(e) => setStatusFilter(e.target.value as any)}
-              className="bg-[#07080a] text-zinc-300 border border-white/[0.1] rounded-lg px-2 py-1 text-[11px] sm:text-xs focus:outline-none focus:border-orange-500 min-h-[32px]"
-            >
-              <option value="all">All Status</option>
-              <option value="active">Active Only</option>
-              <option value="resolved">Resolved Only</option>
-            </select>
+          <button
+            onClick={() => setFilterScope('critical')}
+            className={`px-3 py-1 rounded-lg font-bold transition-[background-color,color] duration-[var(--dur-fast)] ease-[var(--ease-out)] cursor-pointer flex items-center gap-1.5 ${
+              filterScope === 'critical'
+                ? 'bg-[#E11D48] text-white shadow-xs'
+                : 'text-[#7B746A] hover:text-[#171512]'
+            }`}
+          >
+            <span>Critical</span>
+            {criticalCount > 0 && (
+              <span className="px-1.5 py-0.2 rounded-full text-[9px] bg-white text-[#E11D48] font-bold">
+                {criticalCount}
+              </span>
+            )}
+          </button>
 
-            {/* Severity Filter */}
-            <select
-              value={severityFilter}
-              onChange={(e) => setSeverityFilter(e.target.value as any)}
-              className="bg-[#07080a] text-zinc-300 border border-white/[0.1] rounded-lg px-2 py-1 text-[11px] sm:text-xs focus:outline-none focus:border-orange-500 min-h-[32px]"
-            >
-              <option value="all">All Severities</option>
-              <option value="CRITICAL">Critical</option>
-              <option value="WARNING">Warning</option>
-            </select>
-          </div>
+          <button
+            onClick={() => setFilterScope('all')}
+            className={`px-3 py-1 rounded-lg font-bold transition-[background-color,color] duration-[var(--dur-fast)] ease-[var(--ease-out)] cursor-pointer ${
+              filterScope === 'all'
+                ? 'bg-[#171512] text-white shadow-xs'
+                : 'text-[#7B746A] hover:text-[#171512]'
+            }`}
+          >
+            All Logs
+          </button>
         </div>
       </div>
 
-      {/* Alerts List */}
-      {filteredAlerts.length === 0 ? (
-        <div className="p-6 sm:p-8 text-center bg-[#07080a] rounded-xl border border-white/[0.06] animate-alert-enter">
-          <CheckCircle2 className="w-7 h-7 sm:w-8 sm:h-8 text-emerald-400/80 mx-auto mb-2" />
-          <p className="text-xs sm:text-sm font-semibold text-zinc-200 font-display">All Compartments Nominal</p>
-          <p className="text-[11px] sm:text-xs text-zinc-500 font-body mt-0.5">
-            Smart delivery compartments are operating within certified temperature and humidity thresholds.
-          </p>
+      {/* List Content */}
+      {error ? (
+        <div className="p-4 text-center text-[#E11D48] text-xs font-body">Failed to load alerts: {error}</div>
+      ) : filteredAlerts.length === 0 ? (
+        <div className="p-8 text-center text-[#7B746A] text-xs font-body flex flex-col items-center gap-2">
+          <CheckCircle2 className="w-8 h-8 text-[#10B981]" />
+          <span className="font-bold text-[#171512]">No active incident alerts in this view</span>
+          <span>All monitored compartment parameters are currently within configured safety thresholds.</span>
         </div>
       ) : (
-        <div className="space-y-2.5 max-h-96 overflow-y-auto pr-0.5">
+        <div className="space-y-3">
           {filteredAlerts.map((alert) => (
             <div
               key={alert.id}
-              className={`p-3 rounded-xl border transition-[background-color,border-color,opacity] duration-[var(--dur-base)] ease-[var(--ease-out)] animate-alert-enter flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 ${
+              className={`p-4 rounded-xl border flex flex-col sm:flex-row sm:items-center justify-between gap-3 transition-[background-color,border-color] duration-[var(--dur-fast)] ease-[var(--ease-out)] ${
                 alert.isResolved
-                  ? 'bg-[#0a0b0e] border-white/[0.06] opacity-75'
+                  ? 'bg-[#F2ECE0]/40 border-[#171512]/06 opacity-70'
                   : alert.severity === 'CRITICAL'
-                  ? 'bg-rose-950/25 border-rose-900/50 shadow-sm shadow-rose-950/40 ring-1 ring-rose-500/20'
-                  : 'bg-amber-950/20 border-amber-900/40 shadow-sm shadow-amber-950/30'
+                  ? 'bg-[#E11D48]/05 border-[#E11D48]/25'
+                  : 'bg-[#FC4731]/05 border-[#FC4731]/25'
               }`}
             >
               {/* Alert Content */}
-              <div className="space-y-1.5 min-w-0 flex-1 overflow-hidden">
-                <div className="flex flex-wrap items-center gap-1.5 sm:gap-2 min-w-0">
+              <div className="space-y-1.5 min-w-0 flex-1 overflow-hidden font-body">
+                <div className="flex flex-wrap items-center gap-2 min-w-0">
                   {getSeverityBadge(alert.severity)}
                   {alert.device && (
-                    <span className="text-[10px] sm:text-xs font-data font-medium text-zinc-300 bg-[#07080a] px-1.5 py-0.5 rounded border border-white/[0.06] truncate max-w-[120px]" title={alert.device.deviceCode}>
+                    <span className="text-xs font-mono font-bold text-[#171512] bg-[#F2ECE0] px-2 py-0.5 rounded border border-[#171512]/08 truncate max-w-[130px]" title={alert.device.deviceCode}>
                       [{alert.device.deviceCode}]
                     </span>
                   )}
-                  <span className="text-xs font-semibold text-zinc-200 font-body truncate">
+                  <span className="text-xs font-bold text-[#171512] truncate">
                     {alert.type.replace(/_/g, ' ')}
                   </span>
-                  {alert.isResolved ? (
-                    <span className="inline-flex items-center gap-1 text-[9px] text-emerald-400 bg-emerald-500/10 px-1.5 py-0.5 rounded-full border border-emerald-500/30 font-bold uppercase transition-[background-color,border-color,color] duration-[var(--dur-base)] ease-[var(--ease-out)]">
-                      <Check className="w-2.5 h-2.5" /> Resolved
-                    </span>
-                  ) : (
-                    <span className="inline-flex items-center gap-1 text-[9px] text-rose-400 bg-rose-500/10 px-1.5 py-0.5 rounded-full border border-rose-500/30 font-bold uppercase">
-                      Active
+                  {alert.isResolved && (
+                    <span className="text-[10px] text-[#10B981] font-bold bg-[#10B981]/10 px-2 py-0.5 rounded">
+                      RESOLVED
                     </span>
                   )}
                 </div>
 
-                <p className="text-xs text-zinc-300 font-body leading-relaxed line-clamp-3">{alert.message}</p>
+                <p className="text-xs text-[#171512] font-medium leading-relaxed line-clamp-3">{alert.message}</p>
 
-                <div className="flex flex-wrap items-center gap-2 sm:gap-3 text-[10px] text-zinc-500 font-body">
-                  <span className="flex items-center gap-1">
-                    <Clock className="w-3 h-3 text-zinc-600" />
-                    Triggered: <span className="font-data text-zinc-400">{formatDate(alert.triggeredAt)}</span>
+                <div className="flex flex-wrap items-center gap-3 text-[11px] text-[#7B746A]">
+                  <span className="flex items-center gap-1 font-mono">
+                    <Clock className="w-3 h-3 text-[#7B746A]" />
+                    {new Date(alert.triggeredAt).toLocaleString()}
                   </span>
-                  {alert.triggerValue !== null && alert.thresholdValue !== null && (
-                    <span className="font-data text-zinc-400">
-                      Value: <strong className="text-zinc-200">{alert.triggerValue}</strong> (Limit: {alert.thresholdValue})
+                  {alert.triggerValue !== null && (
+                    <span>
+                      Triggered Value: <strong className="font-mono text-[#171512]">{alert.triggerValue}</strong>
                     </span>
                   )}
-                  {alert.isResolved && alert.resolvedAt && (
-                    <span className="text-emerald-400">
-                      Resolved: <span className="font-data">{formatDate(alert.resolvedAt)}</span>
+                  {alert.thresholdValue !== null && (
+                    <span>
+                      Threshold Limit: <strong className="font-mono text-[#7B746A]">{alert.thresholdValue}</strong>
                     </span>
                   )}
                 </div>
               </div>
 
-              {/* Action Button */}
+              {/* Actions */}
               {!alert.isResolved && (
-                <div className="shrink-0 pt-1 sm:pt-0">
-                  {canResolve ? (
+                <div className="flex items-center gap-2 shrink-0 font-body">
+                  {!alert.acknowledgedAt && onAcknowledgeAlert && (
+                    <button
+                      onClick={() => handleAcknowledge(alert.id)}
+                      disabled={actioningId === alert.id}
+                      className="px-3 py-1.5 rounded-lg border border-[#171512]/15 bg-[#FFF9EF] text-xs font-bold text-[#171512] hover:bg-[#F2ECE0] active:scale-[0.97] cursor-pointer transition-[transform,background-color] duration-[var(--dur-fast)] ease-[var(--ease-out)]"
+                    >
+                      Acknowledge
+                    </button>
+                  )}
+                  {onResolveAlert && (
                     <button
                       onClick={() => handleResolve(alert.id)}
-                      disabled={resolvingId === alert.id}
-                      className="w-full sm:w-auto inline-flex items-center justify-center gap-1.5 px-3.5 py-2 text-xs font-semibold rounded-lg bg-emerald-500/15 hover:bg-emerald-500/25 text-emerald-300 border border-emerald-500/30 active:scale-[0.97] transition-[transform,background-color,border-color,opacity] duration-[var(--dur-fast)] ease-[var(--ease-out)] disabled:opacity-50 cursor-pointer min-h-[38px]"
+                      disabled={actioningId === alert.id}
+                      className="px-3 py-1.5 rounded-lg bg-[#10B981] text-xs font-bold text-white shadow-xs hover:bg-[#059669] active:scale-[0.97] cursor-pointer transition-[transform,background-color] duration-[var(--dur-fast)] ease-[var(--ease-out)]"
                     >
-                      <Check className="w-3.5 h-3.5" />
-                      <span>{resolvingId === alert.id ? 'Resolving...' : 'Resolve Alert'}</span>
+                      Resolve
                     </button>
-                  ) : (
-                    <span className="text-[10px] text-zinc-500 italic font-body block text-center sm:text-right">Sign in to resolve</span>
                   )}
                 </div>
               )}

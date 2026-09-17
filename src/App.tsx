@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { api } from './api/client';
+import logoImg from './assets/logo.png';
 import {
   SafeDevice,
   AnalyticsSummary,
@@ -106,6 +107,15 @@ const DashboardContent: React.FC = () => {
   // Request Guards
   const isFetchingRef = useRef<boolean>(false);
   const isFetchingDevicesRef = useRef<boolean>(false);
+
+  // Open Claim Bag trigger (enforce auth)
+  const handleOpenAddDevice = useCallback(() => {
+    if (!isAuthenticated) {
+      setIsAuthOpen(true);
+    } else {
+      setIsAddDeviceOpen(true);
+    }
+  }, [isAuthenticated]);
 
   // Count active alerts
   const activeAlertsCount = alerts.filter((a) => !a.isResolved).length;
@@ -322,23 +332,44 @@ const DashboardContent: React.FC = () => {
 
   if (isAuthLoading) {
     return (
-      <div className="min-h-screen bg-[var(--dark)] text-[var(--text)] flex items-center justify-center font-body p-4">
+      <div className="min-h-screen bg-[#F8F3E8] text-[#171512] flex items-center justify-center font-body p-4">
         <div className="flex flex-col items-center gap-3">
-          <div className="w-8 h-8 rounded-full border-2 border-[var(--orange)] border-t-transparent animate-spin" />
-          <span className="text-xs text-[var(--muted)] font-display tracking-wider uppercase">Loading INFINOS...</span>
+          <div className="w-8 h-8 rounded-full border-2 border-[#FC4731] border-t-transparent animate-spin" />
+          <span className="text-xs text-[#7B746A] font-display tracking-widest uppercase">Loading INFINOS...</span>
+        </div>
+      </div>
+    );
+  }
+
+  if (!isAuthenticated) {
+    return (
+      <div className="min-h-screen bg-[#F8F3E8] text-[#171512] flex flex-col items-center justify-center p-4 font-body selection:bg-[#FC4731]/30">
+        <div className="w-full max-w-sm flex flex-col items-center mb-6 text-center">
+          <div className="w-12 h-12 rounded-2xl bg-[#FC4731] flex items-center justify-center shadow-md shadow-[#FC4731]/25 overflow-hidden mb-3">
+            <img src={logoImg} alt="INFINOS logo" className="w-full h-full object-cover" />
+          </div>
+          <h1 className="font-editorial text-3xl font-bold tracking-tight text-[#171512]">
+            INFINOS
+          </h1>
+          <p className="text-xs font-semibold uppercase tracking-widest text-[#7B746A] mt-1">
+            Cold-Chain Telemetry Platform
+          </p>
+        </div>
+        <div className="w-full max-w-sm">
+          <AuthModal isOpen={true} onClose={() => {}} isStandalone={true} />
         </div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-[var(--dark)] text-[var(--text)] flex flex-col font-body selection:bg-orange-500/30 relative w-full overflow-x-hidden">
+    <div className="min-h-screen bg-[#F8F3E8] text-[#171512] flex flex-col font-body selection:bg-[#FC4731]/30 relative w-full overflow-x-hidden">
       {/* Top Navbar */}
       <Header
         selectedDevice={selectedDevice}
         activeNavTab={activeNavTab}
         onSelectNavTab={setActiveNavTab}
-        onOpenAddDevice={() => setIsAddDeviceOpen(true)}
+        onOpenAddDevice={handleOpenAddDevice}
         onOpenAuth={() => setIsAuthOpen(true)}
         isLightMode={isLightMode}
         onToggleTheme={toggleTheme}
@@ -346,23 +377,23 @@ const DashboardContent: React.FC = () => {
       />
 
       {/* Main Content Area */}
-      <main className="flex-1 w-full max-w-[1180px] mx-auto px-4 py-5 pb-24 md:pb-10">
+      <main className="flex-1 w-full max-w-[1180px] mx-auto px-4 py-6 pb-24 md:pb-12">
         {/* DASHBOARD TAB */}
         {activeNavTab === 'dashboard' && (
-          <div className="space-y-5 animate-in fade-in duration-150">
+          <div className="space-y-6 animate-in fade-in duration-150">
             {/* Page Header */}
-            <div className="flex items-start justify-between gap-3 mb-5">
+            <div className="flex items-start justify-between gap-3 mb-6">
               <div>
-                <h1 className="font-display font-bold text-xl sm:text-2xl text-[var(--text)] leading-tight">
+                <h1 className="font-editorial text-2xl sm:text-3xl text-[#171512] leading-tight font-normal tracking-tight">
                   Smart Bag Dashboard
                 </h1>
-                <p className="text-xs text-[var(--muted)] mt-0.5">
-                  Real-time temperature monitoring for your delivery bags
+                <p className="text-xs text-[#7B746A] mt-1 font-body">
+                  Real-time thermal telemetry and monitoring across your fleet
                 </p>
               </div>
               <button
                 onClick={handleRefreshAll}
-                className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-[var(--surface2)] border border-[var(--border)] text-[var(--muted)] hover:text-[var(--text)] hover:border-[var(--border-strong)] text-xs cursor-pointer transition-[color,border-color] duration-[var(--dur-fast)] ease-[var(--ease-out)] whitespace-nowrap"
+                className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-full bg-[#FFF9EF] border border-[#171512]/[0.08] text-[#7B746A] hover:text-[#171512] hover:border-[#171512]/[0.2] text-xs font-medium cursor-pointer transition-all duration-[var(--dur-fast)] ease-[var(--ease-out)] shadow-xs"
               >
                 <svg
                   width="13"
@@ -383,54 +414,57 @@ const DashboardContent: React.FC = () => {
             </div>
 
             {/* Stats Row */}
-            <div className="grid grid-cols-2 lg:grid-cols-4 gap-2.5 mb-5">
+            <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-6">
               <StatCard
                 label="Total Bags"
                 value={totalBagsCount}
                 desc="Registered"
                 icon="📦"
-                iconBg="rgba(255,107,53,0.09)"
+                iconBg="rgba(252,71,49,0.08)"
               />
               <StatCard
                 label="Online"
                 value={onlineBagsCount}
                 desc="Active now"
                 icon="🟢"
-                iconBg="rgba(52,211,153,0.09)"
-                valueColor="var(--green)"
+                iconBg="rgba(16,185,129,0.08)"
+                valueColor="#059669"
               />
               <StatCard
                 label="Avg Hot Temp"
                 value={avgHotTempStr}
                 desc="°C all bags"
                 icon="🔥"
-                iconBg="rgba(255,107,53,0.09)"
-                valueColor="var(--hot)"
+                iconBg="rgba(252,71,49,0.08)"
+                valueColor="#FC4731"
               />
               <StatCard
                 label="Avg Cold Temp"
                 value={avgColdTempStr}
                 desc="°C all bags"
                 icon="❄️"
-                iconBg="rgba(56,189,248,0.09)"
-                valueColor="var(--cold)"
+                iconBg="rgba(14,165,233,0.08)"
+                valueColor="#0284c7"
               />
             </div>
 
             {/* Section Title: Your Bags */}
-            <div className="font-display text-[0.65rem] font-bold uppercase tracking-widest text-[var(--muted)] flex items-center gap-2 mb-2.5">
-              <i className="w-[3px] h-[13px] rounded-full bg-[var(--orange)] inline-block shrink-0" />
-              <span>Your Bags</span>
+            <div className="flex items-center justify-between mb-3">
+              <h2 className="text-xs font-bold tracking-widest uppercase text-[#7B746A] flex items-center gap-2 font-display">
+                <span className="w-1.5 h-1.5 rounded-full bg-[#FC4731]" />
+                <span>Your Bags</span>
+              </h2>
+              <span className="text-[11px] text-[#7B746A] font-mono">{devices.length} active</span>
             </div>
 
             {/* Devices Grid */}
             {devices.length === 0 ? (
               <div className="grid grid-cols-1 gap-2.5 mb-6">
-                <div className="col-span-full text-center py-12 px-5 text-[var(--muted)]">
-                  <div className="text-4xl mb-3 opacity-25 select-none">📦</div>
-                  <div className="font-display text-sm font-bold mb-1 text-[var(--text)]">No bags claimed yet</div>
+                <div className="col-span-full text-center py-12 px-5 bg-[#FFF9EF] border border-[#171512]/[0.08] rounded-2xl text-[#7B746A]">
+                  <div className="text-4xl mb-3 opacity-30 select-none">📦</div>
+                  <div className="font-editorial text-lg font-normal mb-1 text-[#171512]">No bags claimed yet</div>
                   <div className="text-xs">
-                    Tap <strong className="text-[var(--orange)] cursor-pointer" onClick={() => setIsAddDeviceOpen(true)}>+ Claim Bag</strong> to add your first delivery bag
+                    Tap <strong className="text-[#FC4731] cursor-pointer" onClick={handleOpenAddDevice}>+ Claim Bag</strong> to add your first delivery bag
                   </div>
                 </div>
               </div>
@@ -440,7 +474,7 @@ const DashboardContent: React.FC = () => {
                 variants={getGridStaggerVariants(devices.length)}
                 initial="hidden"
                 animate="show"
-                className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-2.5 mb-6"
+                className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3 mb-8"
               >
                 {devices.map((device) => (
                   <motion.div key={device.id} variants={cardItemVariants} className="min-w-0 overflow-hidden">
@@ -464,9 +498,16 @@ const DashboardContent: React.FC = () => {
             )}
 
             {/* Section Title: Live Monitor */}
-            <div className="font-display text-[0.65rem] font-bold uppercase tracking-widest text-[var(--muted)] flex items-center gap-2 mb-2.5">
-              <i className="w-[3px] h-[13px] rounded-full bg-[var(--orange)] inline-block shrink-0" />
-              <span>Live Monitor</span>
+            <div className="flex items-center justify-between mb-3">
+              <h2 className="text-xs font-bold tracking-widest uppercase text-[#7B746A] flex items-center gap-2 font-display">
+                <span className="w-1.5 h-1.5 rounded-full bg-[#FC4731]" />
+                <span>Live Telemetry & Waveform</span>
+              </h2>
+              {selectedDevice && (
+                <span className="text-[11px] text-[#7B746A] font-mono">
+                  {selectedDevice.deviceCode}
+                </span>
+              )}
             </div>
 
             {/* Monitor Panel & Charts */}
@@ -499,19 +540,19 @@ const DashboardContent: React.FC = () => {
 
         {/* DEVICES TAB */}
         {activeNavTab === 'devices' && (
-          <div className="space-y-5 animate-in fade-in duration-150">
+          <div className="space-y-6 animate-in fade-in duration-150">
             <div className="flex items-center justify-between mb-4">
               <div>
-                <h1 className="font-display font-bold text-xl sm:text-2xl text-[var(--text)]">
+                <h1 className="font-editorial text-2xl sm:text-3xl text-[#171512] font-normal tracking-tight">
                   All Devices
                 </h1>
-                <p className="text-xs text-[var(--muted)] mt-0.5">
-                  Every claimed bag and its latest status
+                <p className="text-xs text-[#7B746A] mt-1">
+                  Every registered delivery bag and its current operational status
                 </p>
               </div>
               <button
-                onClick={() => setIsAddDeviceOpen(true)}
-                className="px-3.5 py-1.5 rounded-full bg-gradient-to-r from-[var(--orange)] to-[#e83800] text-white font-body text-xs font-semibold shadow-md shadow-orange-500/25 hover:-translate-y-0.5 cursor-pointer transition-[transform,box-shadow] duration-[var(--dur-base)] ease-[var(--ease-out)]"
+                onClick={handleOpenAddDevice}
+                className="px-4 py-2 rounded-xl bg-[#FC4731] text-white font-body text-xs font-semibold shadow-xs hover:bg-[#e03a25] cursor-pointer transition-all duration-[var(--dur-fast)]"
               >
                 + Claim Bag
               </button>
@@ -519,9 +560,9 @@ const DashboardContent: React.FC = () => {
 
             {devices.length === 0 ? (
               <div className="grid grid-cols-1 gap-2.5">
-                <div className="col-span-full text-center py-12 px-5 text-[var(--muted)]">
-                  <div className="text-4xl mb-3 opacity-25">📦</div>
-                  <div className="font-display text-sm font-bold mb-1 text-[var(--text)]">No bags claimed yet</div>
+                <div className="col-span-full text-center py-12 px-5 bg-[#FFF9EF] border border-[#171512]/[0.08] rounded-2xl text-[#7B746A]">
+                  <div className="text-4xl mb-3 opacity-30">📦</div>
+                  <div className="font-editorial text-lg font-normal mb-1 text-[#171512]">No bags claimed yet</div>
                   <div className="text-xs">Tap + Claim Bag to get started</div>
                 </div>
               </div>
@@ -531,7 +572,7 @@ const DashboardContent: React.FC = () => {
                 variants={getGridStaggerVariants(devices.length)}
                 initial="hidden"
                 animate="show"
-                className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-2.5"
+                className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3"
               >
                 {devices.map((device) => (
                   <motion.div key={device.id} variants={cardItemVariants} className="min-w-0 overflow-hidden">
@@ -554,18 +595,18 @@ const DashboardContent: React.FC = () => {
 
         {/* ANALYTICS TAB */}
         {activeNavTab === 'analytics' && (
-          <div className="space-y-5 animate-in fade-in duration-150">
+          <div className="space-y-6 animate-in fade-in duration-150">
             <div className="mb-4">
-              <h1 className="font-display font-bold text-xl sm:text-2xl text-[var(--text)]">
+              <h1 className="font-editorial text-2xl sm:text-3xl text-[#171512] font-normal tracking-tight">
                 Analytics
               </h1>
-              <p className="text-xs text-[var(--muted)] mt-0.5">
+              <p className="text-xs text-[#7B746A] mt-1">
                 Portfolio temperature insights across all bags
               </p>
             </div>
 
             {/* 4 Analytics Stat Cards */}
-            <div className="grid grid-cols-2 lg:grid-cols-4 gap-2.5 mb-5">
+            <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-6">
               <StatCard
                 label="Total Readings"
                 value={totalReadingsCount}
@@ -575,13 +616,13 @@ const DashboardContent: React.FC = () => {
                 label="Hottest Reading"
                 value={hottestReadingStr}
                 desc="Max temperature"
-                valueColor="var(--hot)"
+                valueColor="#FC4731"
               />
               <StatCard
                 label="Coldest Reading"
                 value={coldestReadingStr}
                 desc="Min temperature"
-                valueColor="var(--cold)"
+                valueColor="#0284c7"
               />
               <StatCard
                 label="Active Channels"
@@ -628,7 +669,7 @@ const DashboardContent: React.FC = () => {
       <MobileBottomNav
         activeNavTab={activeNavTab}
         onSelectNavTab={setActiveNavTab}
-        onOpenAddDevice={() => setIsAddDeviceOpen(true)}
+        onOpenAddDevice={handleOpenAddDevice}
         isLightMode={isLightMode}
         onToggleTheme={toggleTheme}
         activeAlertsCount={activeAlertsCount}

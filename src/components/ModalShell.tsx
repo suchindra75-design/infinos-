@@ -21,7 +21,6 @@ export const ModalShell: React.FC<ModalShellProps> = ({
 }) => {
   const shouldReduceMotion = useReducedMotion();
 
-  // Responsive mobile breakpoint check for bottom-sheet motion
   const [isMobile, setIsMobile] = useState<boolean>(
     typeof window !== 'undefined' ? window.innerWidth <= 640 : false
   );
@@ -34,7 +33,6 @@ export const ModalShell: React.FC<ModalShellProps> = ({
     return () => window.removeEventListener('resize', handleResize);
   }, []);
 
-  // Listen for Escape key press to close modal
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === 'Escape' && isOpen) {
@@ -45,13 +43,12 @@ export const ModalShell: React.FC<ModalShellProps> = ({
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [isOpen, onClose]);
 
-  // Motion Variants
   const backdropVariants = {
     hidden: { opacity: 0 },
     visible: {
       opacity: 1,
       transition: {
-        duration: 0.2, // --dur-base (200ms)
+        duration: 0.2,
         ease: EASE_OUT,
       },
     },
@@ -60,7 +57,7 @@ export const ModalShell: React.FC<ModalShellProps> = ({
       transition: {
         duration: 0.2,
         ease: EASE_OUT,
-        delay: 0.04, // Card exits first, backdrop lags slightly on exit
+        delay: 0.04,
       },
     },
   };
@@ -76,9 +73,9 @@ export const ModalShell: React.FC<ModalShellProps> = ({
       scale: 1,
       translateY: 0,
       transition: {
-        duration: 0.32, // --dur-slow (320ms)
+        duration: 0.32,
         ease: shouldReduceMotion ? EASE_OUT : isMobile ? EASE_OUT : EASE_SPRING,
-        delay: 0.04, // Backdrop starts ~40ms before card on enter
+        delay: 0.04,
       },
     },
     exit: {
@@ -86,7 +83,7 @@ export const ModalShell: React.FC<ModalShellProps> = ({
       scale: shouldReduceMotion ? 1 : isMobile ? 1 : 0.97,
       translateY: shouldReduceMotion ? 0 : isMobile ? '100%' : 12,
       transition: {
-        duration: 0.2, // Faster exit without overshoot (--dur-base)
+        duration: 0.2,
         ease: EASE_OUT,
       },
     },
@@ -96,7 +93,7 @@ export const ModalShell: React.FC<ModalShellProps> = ({
     <AnimatePresence>
       {isOpen && (
         <motion.div
-          className="fixed inset-0 z-[1000] flex items-center justify-center p-3 sm:p-4 bg-[var(--modal-bg)] backdrop-blur-md max-sm:items-end max-sm:p-0 select-none overflow-y-auto"
+          className="fixed inset-0 z-[1000] flex items-center justify-center p-3 sm:p-4 bg-[#171512]/45 backdrop-blur-md max-sm:items-end max-sm:p-0 select-none overflow-y-auto"
           initial="hidden"
           animate="visible"
           exit="exit"
@@ -104,7 +101,7 @@ export const ModalShell: React.FC<ModalShellProps> = ({
           onClick={onClose}
         >
           <motion.div
-            className={`w-full ${maxWidthClass} bg-[var(--surface)] border border-[var(--border-strong)] rounded-[var(--radius-lg)] overflow-hidden shadow-2xl max-sm:rounded-b-none max-sm:max-w-full my-auto max-sm:my-0 flex flex-col max-h-[90dvh] max-sm:max-h-[92dvh]`}
+            className={`w-full ${maxWidthClass} bg-[#FFF9EF] border border-[#171512]/15 rounded-2xl overflow-hidden shadow-2xl shadow-[#171512]/15 max-sm:rounded-b-none max-sm:max-w-full my-auto max-sm:my-0 flex flex-col max-h-[90dvh] max-sm:max-h-[92dvh] text-[#171512]`}
             variants={cardVariants}
             onClick={(e) => e.stopPropagation()}
             role="dialog"

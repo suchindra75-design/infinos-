@@ -32,14 +32,14 @@ const toFiniteNumber = (value: unknown): number | null => {
 };
 
 const COLOR_PALETTE = [
-  '#00a3ff', // blue
-  '#ff6b00', // orange
-  '#38bdf8', // sky blue
-  '#a855f7', // purple
-  '#ec4899', // pink
-  '#10b981', // emerald
-  '#f59e0b', // amber
-  '#6366f1', // indigo
+  '#FC4731', // primary orange
+  '#0284C7', // cold blue
+  '#0EA5E9', // humidity cyan
+  '#8B5CF6', // purple
+  '#EC4899', // pink
+  '#10B981', // emerald
+  '#F59E0B', // amber
+  '#6366F1', // indigo
 ];
 
 export const TelemetryChart: React.FC<TelemetryChartProps> = ({
@@ -109,10 +109,9 @@ export const TelemetryChart: React.FC<TelemetryChartProps> = ({
 
     return resolved.map((field, idx) => {
       let color = COLOR_PALETTE[idx % COLOR_PALETTE.length];
-      if (field.zone === 'cold') color = '#00a3ff';
-      else if (field.zone === 'hot') color = '#ff6b00';
-      else if (field.metric === 'humidity') color = '#38bdf8';
-      else if (field.zone === 'ambient') color = '#10b981';
+      if (field.zone === 'cold') color = '#0284C7';
+      else if (field.zone === 'hot') color = '#FC4731';
+      else if (field.metric === 'humidity') color = '#0EA5E9';
 
       return {
         key: field.fieldKey,
@@ -139,14 +138,12 @@ export const TelemetryChart: React.FC<TelemetryChartProps> = ({
     });
   }, [fieldMappings, readings]);
 
-  // Reset active channel filter if current selection is invalid
   const validActiveChannel = useMemo(() => {
     if (activeChannel === 'all') return 'all';
     const exists = seriesDefs.some((s) => s.key === activeChannel);
     return exists ? activeChannel : 'all';
   }, [activeChannel, seriesDefs]);
 
-  // Compute min/max bounds for the active series
   const bounds = useMemo(() => {
     if (readings.length === 0) return { min: 0, max: 100 };
 
@@ -244,29 +241,29 @@ export const TelemetryChart: React.FC<TelemetryChartProps> = ({
   const latestX = readings.length > 0 ? getX(latestIndex) : 0;
 
   return (
-    <div className="bg-[#0e1014] border border-white/[0.08] rounded-xl p-3.5 sm:p-5 space-y-3 sm:space-y-4 shadow-lg shadow-black/30 transition-[border-color,box-shadow] duration-[var(--dur-base)] ease-[var(--ease-out)]">
+    <div className="bg-[#FFF9EF] border border-[#171512]/10 rounded-2xl p-4 sm:p-6 space-y-4 shadow-md shadow-[#171512]/04 transition-[border-color,box-shadow] duration-[var(--dur-base)] ease-[var(--ease-out)]">
       {/* Top Header & Range Selection */}
-      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2.5">
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
         <div className="flex items-center gap-2">
-          <LineChart className="w-4 h-4 text-[#ff6b00] shrink-0" />
-          <h3 className="text-xs sm:text-xs font-extrabold uppercase tracking-wider text-zinc-200 font-display">
+          <LineChart className="w-4 h-4 text-[#FC4731] shrink-0" />
+          <h3 className="text-xs sm:text-xs font-extrabold uppercase tracking-widest text-[#171512] font-display">
             Compartment Telemetry History
           </h3>
-          <span className="text-[10px] sm:text-xs text-zinc-500 font-data">
+          <span className="text-xs text-[#7B746A] font-mono">
             ({readings.length} pts)
           </span>
         </div>
 
         {/* Time Range Selector & Channel Filter Tabs */}
-        <div className="flex flex-wrap items-center gap-1.5 sm:gap-2 w-full sm:w-auto justify-between sm:justify-end">
+        <div className="flex flex-wrap items-center gap-2 w-full sm:w-auto justify-between sm:justify-end">
           {/* Channel Filters */}
-          <div className="flex flex-wrap items-center bg-[#07080a] p-0.5 rounded-lg border border-white/[0.08] text-[11px] sm:text-xs font-body gap-0.5">
+          <div className="flex flex-wrap items-center bg-[#F2ECE0] p-1 rounded-xl border border-[#171512]/06 text-xs font-body gap-1">
             <button
               onClick={() => setActiveChannel('all')}
-              className={`px-2.5 py-1 rounded font-medium transition-[background-color,color,border-color] duration-[var(--dur-fast)] ease-[var(--ease-out)] cursor-pointer ${
+              className={`px-3 py-1 rounded-lg font-bold transition-[background-color,color] duration-[var(--dur-fast)] ease-[var(--ease-out)] cursor-pointer ${
                 validActiveChannel === 'all'
-                  ? 'bg-zinc-800 text-white font-semibold shadow-xs'
-                  : 'text-zinc-400 hover:text-zinc-200'
+                  ? 'bg-[#171512] text-[#F8F3E8] shadow-xs'
+                  : 'text-[#7B746A] hover:text-[#171512]'
               }`}
             >
               All
@@ -278,12 +275,12 @@ export const TelemetryChart: React.FC<TelemetryChartProps> = ({
                   key={s.key}
                   onClick={() => setActiveChannel(s.key)}
                   style={{
-                    color: isActive ? s.color : s.color,
-                    borderColor: isActive ? `${s.color}60` : 'transparent',
-                    backgroundColor: isActive ? `${s.color}20` : 'transparent',
+                    color: isActive ? s.color : '#7B746A',
+                    backgroundColor: isActive ? `${s.color}15` : 'transparent',
+                    borderColor: isActive ? s.color : 'transparent',
                   }}
-                  className={`px-2.5 py-1 rounded font-medium transition-[background-color,color,border-color,opacity] duration-[var(--dur-fast)] ease-[var(--ease-out)] cursor-pointer border ${
-                    isActive ? 'font-semibold shadow-xs opacity-100' : 'opacity-70 hover:opacity-100'
+                  className={`px-3 py-1 rounded-lg font-bold transition-[background-color,color,border-color] duration-[var(--dur-fast)] ease-[var(--ease-out)] cursor-pointer border ${
+                    isActive ? 'shadow-xs' : 'hover:text-[#171512]'
                   }`}
                 >
                   {s.label}
@@ -293,15 +290,15 @@ export const TelemetryChart: React.FC<TelemetryChartProps> = ({
           </div>
 
           {/* Time Range Selector */}
-          <div className="flex items-center bg-[#07080a] p-0.5 rounded-lg border border-white/[0.08] text-[11px] sm:text-xs font-body">
+          <div className="flex items-center bg-[#F2ECE0] p-1 rounded-xl border border-[#171512]/06 text-xs font-body">
             {(['all', '1h', '6h', '24h', '7d'] as const).map((range) => (
               <button
                 key={range}
                 onClick={() => onChangeTimeRange(range)}
-                className={`px-2.5 py-1 rounded font-medium transition-[background-color,color,border-color] duration-[var(--dur-fast)] ease-[var(--ease-out)] cursor-pointer ${
+                className={`px-3 py-1 rounded-lg font-bold transition-[background-color,color] duration-[var(--dur-fast)] ease-[var(--ease-out)] cursor-pointer ${
                   timeRange === range
-                    ? 'bg-gradient-to-r from-orange-500 to-orange-600 text-white font-semibold shadow-xs'
-                    : 'text-zinc-400 hover:text-zinc-200'
+                    ? 'bg-[#FC4731] text-white shadow-xs'
+                    : 'text-[#7B746A] hover:text-[#171512]'
                 }`}
               >
                 {range}
@@ -313,17 +310,14 @@ export const TelemetryChart: React.FC<TelemetryChartProps> = ({
 
       {/* Chart Canvas Area */}
       {error ? (
-        <div className="h-56 sm:h-64 flex items-center justify-center text-rose-400 text-xs sm:text-sm gap-2 p-4 text-center">
-          <AlertCircle className="w-4 h-4 sm:w-5 sm:h-5 shrink-0" />
+        <div className="h-56 sm:h-64 flex items-center justify-center text-[#E11D48] text-xs sm:text-sm gap-2 p-4 text-center">
+          <AlertCircle className="w-5 h-5 shrink-0" />
           <span>Failed to load timeseries data: {error}</span>
         </div>
       ) : readings.length === 0 ? (
-        <div className="h-56 sm:h-64 flex flex-col items-center justify-center text-zinc-500 text-xs sm:text-sm gap-2 p-4 text-center">
-          <Calendar className="w-7 h-7 sm:w-8 sm:h-8 text-zinc-600" />
+        <div className="h-56 sm:h-64 flex flex-col items-center justify-center text-[#7B746A] text-xs sm:text-sm gap-2 p-4 text-center">
+          <Calendar className="w-8 h-8 text-[#7B746A]/60" />
           <span className="font-body">No sensor readings recorded for this bag within the selected time window.</span>
-          <span className="text-[11px] text-zinc-600 font-body">
-            Telemetry is synchronized automatically from ThingSpeak to PostgreSQL.
-          </span>
         </div>
       ) : (
         <div className="relative overflow-hidden w-full touch-pan-y">
@@ -338,7 +332,7 @@ export const TelemetryChart: React.FC<TelemetryChartProps> = ({
             <defs>
               {seriesDefs.map((s) => (
                 <linearGradient key={s.gradientId} id={s.gradientId} x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="0%" stopColor={s.color} stopOpacity="0.25" />
+                  <stop offset="0%" stopColor={s.color} stopOpacity="0.20" />
                   <stop offset="100%" stopColor={s.color} stopOpacity="0.0" />
                 </linearGradient>
               ))}
@@ -355,14 +349,14 @@ export const TelemetryChart: React.FC<TelemetryChartProps> = ({
                     y1={y}
                     x2={width - padding.right}
                     y2={y}
-                    stroke="rgba(255, 255, 255, 0.05)"
+                    stroke="rgba(23, 21, 18, 0.06)"
                     strokeDasharray="4 4"
                   />
                   <text
-                    x={padding.left - 6}
+                    x={padding.left - 8}
                     y={y + 3}
                     textAnchor="end"
-                    className="text-[10px] fill-zinc-500 font-data"
+                    className="text-[10px] fill-[#7B746A] font-data font-medium"
                   >
                     {val.toFixed(0)}
                   </text>
@@ -377,7 +371,7 @@ export const TelemetryChart: React.FC<TelemetryChartProps> = ({
                   x={padding.left}
                   y={height - 10}
                   textAnchor="start"
-                  className="text-[10px] fill-zinc-500 font-data"
+                  className="text-[10px] fill-[#7B746A] font-data font-medium"
                 >
                   {new Date(readings[0].recordedAt).toLocaleTimeString([], {
                     hour: '2-digit',
@@ -389,7 +383,7 @@ export const TelemetryChart: React.FC<TelemetryChartProps> = ({
                     x={width - padding.right}
                     y={height - 10}
                     textAnchor="end"
-                    className="text-[10px] fill-zinc-500 font-data"
+                    className="text-[10px] fill-[#7B746A] font-data font-medium"
                   >
                     {new Date(readings[readings.length - 1].recordedAt).toLocaleTimeString([], {
                       hour: '2-digit',
@@ -406,9 +400,6 @@ export const TelemetryChart: React.FC<TelemetryChartProps> = ({
               if (!isVisible) return null;
               const targetOpacity = isVisible ? 1 : 0.2;
               const currentOpacity = isInitialDraw ? (animationStarted ? targetOpacity : 0) : targetOpacity;
-              const transitionStyle = isInitialDraw
-                ? 'opacity 700ms cubic-bezier(0.25, 1, 0.5, 1) 180ms'
-                : 'opacity var(--dur-slow) var(--ease-out)';
 
               return (
                 <path
@@ -417,7 +408,7 @@ export const TelemetryChart: React.FC<TelemetryChartProps> = ({
                   fill={`url(#${s.gradientId})`}
                   style={{
                     opacity: currentOpacity,
-                    transition: transitionStyle,
+                    transition: 'opacity 700ms cubic-bezier(0.16, 1, 0.3, 1) 180ms',
                   }}
                 />
               );
@@ -435,12 +426,11 @@ export const TelemetryChart: React.FC<TelemetryChartProps> = ({
                     strokeDashoffset: animationStarted ? 0 : 1000,
                     opacity: targetOpacity,
                     transition:
-                      'stroke-dashoffset 700ms cubic-bezier(0.25, 1, 0.5, 1) 180ms, opacity 700ms cubic-bezier(0.25, 1, 0.5, 1) 180ms',
+                      'stroke-dashoffset 700ms cubic-bezier(0.16, 1, 0.3, 1) 180ms, opacity 700ms cubic-bezier(0.16, 1, 0.3, 1) 180ms',
                   }
                 : {
                     opacity: targetOpacity,
-                    transition:
-                      'd var(--dur-slow) var(--ease-out), stroke var(--dur-base) var(--ease-out), stroke-width var(--dur-base) var(--ease-out), opacity var(--dur-base) var(--ease-out)',
+                    transition: 'd 320ms cubic-bezier(0.16, 1, 0.3, 1), stroke 200ms ease-out',
                   };
 
               return (
@@ -449,7 +439,7 @@ export const TelemetryChart: React.FC<TelemetryChartProps> = ({
                   d={generatePath(s)}
                   fill="none"
                   stroke={s.color}
-                  strokeWidth={validActiveChannel === s.key ? 3 : 2.4}
+                  strokeWidth={validActiveChannel === s.key ? 3 : 2.5}
                   strokeLinecap="round"
                   strokeLinejoin="round"
                   pathLength={isInitialDraw ? 1000 : undefined}
@@ -458,7 +448,7 @@ export const TelemetryChart: React.FC<TelemetryChartProps> = ({
               );
             })}
 
-            {/* Live Playhead / Current Time Line */}
+            {/* Live Playhead Line */}
             {readings.length > 0 && !hoveredPoint && (
               <g>
                 <line
@@ -466,11 +456,11 @@ export const TelemetryChart: React.FC<TelemetryChartProps> = ({
                   y1={padding.top}
                   x2={latestX}
                   y2={padding.top + chartHeight}
-                  stroke="rgba(255, 107, 0, 0.5)"
+                  stroke="rgba(252, 71, 49, 0.5)"
                   strokeWidth={1.5}
                   strokeDasharray="3 3"
                 />
-                <circle cx={latestX} cy={padding.top + 4} r={3} fill="#ff6b00" />
+                <circle cx={latestX} cy={padding.top + 4} r={3.5} fill="#FC4731" />
               </g>
             )}
 
@@ -498,7 +488,7 @@ export const TelemetryChart: React.FC<TelemetryChartProps> = ({
               );
             })}
 
-            {/* Active Hover Indicator Line */}
+            {/* Active Hover Line */}
             {hoveredPoint && (
               <g>
                 <line
@@ -506,7 +496,7 @@ export const TelemetryChart: React.FC<TelemetryChartProps> = ({
                   y1={padding.top}
                   x2={hoveredPoint.x}
                   y2={padding.top + chartHeight}
-                  stroke="rgba(255, 107, 0, 0.7)"
+                  stroke="rgba(252, 71, 49, 0.7)"
                   strokeWidth={1.5}
                   strokeDasharray="2 2"
                 />
@@ -517,14 +507,14 @@ export const TelemetryChart: React.FC<TelemetryChartProps> = ({
           {/* Hover Tooltip Popup */}
           {hoveredPoint && (
             <div
-              className="absolute z-30 bg-[#08090b]/95 border border-white/[0.15] rounded-lg p-2.5 shadow-2xl pointer-events-none text-xs text-zinc-200 backdrop-blur-md max-w-[220px] transition-[left,top,opacity] duration-[var(--dur-fast)] ease-[var(--ease-out)]"
+              className="absolute z-30 bg-[#FFF9EF]/95 border border-[#171512]/15 rounded-xl p-3 shadow-xl pointer-events-none text-xs text-[#171512] backdrop-blur-md max-w-[230px] transition-[left,top,opacity] duration-[var(--dur-fast)] ease-[var(--ease-out)]"
               style={{
                 left: `${Math.min(Math.max((hoveredPoint.x / width) * 100, 15), 75)}%`,
                 top: '8px',
                 transform: 'translateX(-50%)',
               }}
             >
-              <div className="font-semibold text-zinc-300 pb-1 mb-1 border-b border-white/[0.08] font-body text-[10px]">
+              <div className="font-bold text-[#7B746A] pb-1 mb-1 border-b border-[#171512]/08 font-body text-[10px]">
                 {new Date(hoveredPoint.reading.recordedAt).toLocaleString([], {
                   month: 'short',
                   day: 'numeric',
@@ -538,7 +528,7 @@ export const TelemetryChart: React.FC<TelemetryChartProps> = ({
                   const val = s.getValue(hoveredPoint.reading);
                   return (
                     <div key={s.key} className="flex items-center justify-between gap-3" style={{ color: s.color }}>
-                      <span className="truncate max-w-[120px]">{s.label}:</span>
+                      <span className="truncate max-w-[130px]">{s.label}:</span>
                       <strong>{val !== null ? `${val.toFixed(1)}${s.unit}` : '—'}</strong>
                     </div>
                   );
@@ -550,17 +540,17 @@ export const TelemetryChart: React.FC<TelemetryChartProps> = ({
       )}
 
       {/* Visual Chart Legend */}
-      <div className="pt-2 border-t border-white/[0.06] flex flex-wrap items-center justify-center gap-x-5 gap-y-1.5 text-[11px] sm:text-xs text-zinc-400 font-body">
+      <div className="pt-3 border-t border-[#171512]/08 flex flex-wrap items-center justify-center gap-x-6 gap-y-2 text-xs text-[#7B746A] font-body">
         {seriesDefs.map((s) => {
           const isActive = validActiveChannel === s.key;
           return (
             <button
               key={s.key}
               onClick={() => setActiveChannel(isActive ? 'all' : s.key)}
-              className="flex items-center gap-1.5 cursor-pointer transition-[color] duration-[var(--dur-fast)] ease-[var(--ease-out)] hover:text-zinc-200"
-              style={{ color: isActive ? s.color : undefined, fontWeight: isActive ? 'bold' : 'normal' }}
+              className="flex items-center gap-2 cursor-pointer transition-[color] duration-[var(--dur-fast)] ease-[var(--ease-out)] hover:text-[#171512]"
+              style={{ color: isActive ? s.color : undefined, fontWeight: isActive ? 'bold' : '500' }}
             >
-              <span className="w-3 h-1 rounded-full" style={{ backgroundColor: s.color }} />
+              <span className="w-3 h-1.5 rounded-full" style={{ backgroundColor: s.color }} />
               <span>{s.label}{s.unit ? ` (${s.unit})` : ''}</span>
             </button>
           );

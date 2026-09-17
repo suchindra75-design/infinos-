@@ -22,7 +22,7 @@ const stepVariants = {
     opacity: 1,
     x: 0,
     transition: {
-      duration: 0.2, // --dur-base (200ms)
+      duration: 0.2,
       ease: EASE_OUT,
     },
   },
@@ -30,7 +30,7 @@ const stepVariants = {
     opacity: 0,
     x: direction * -8,
     transition: {
-      duration: 0.2, // --dur-base (200ms)
+      duration: 0.2,
       ease: EASE_OUT,
     },
   }),
@@ -44,17 +44,31 @@ export const AddDeviceModal: React.FC<AddDeviceModalProps> = ({
   const [step, setStep] = useState<1 | 2>(1);
   const [direction, setDirection] = useState<number>(1);
 
-  // Form Inputs
   const [deviceCode, setDeviceCode] = useState('');
-  const [channelId, setChannelId] = useState('3297681');
+  const [channelId, setChannelId] = useState('');
   const [readApiKey, setReadApiKey] = useState('');
   const [bagName, setBagName] = useState('');
 
-  // States
   const [isVerifying, setIsVerifying] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [verifyMeta, setVerifyMeta] = useState<string | null>(null);
+
+  // Reset form state cleanly whenever modal opens
+  React.useEffect(() => {
+    if (isOpen) {
+      setStep(1);
+      setDirection(1);
+      setDeviceCode('');
+      setChannelId('');
+      setReadApiKey('');
+      setBagName('');
+      setError(null);
+      setVerifyMeta(null);
+      setIsVerifying(false);
+      setIsSubmitting(false);
+    }
+  }, [isOpen]);
 
   const handleStep1Next = async () => {
     setError(null);
@@ -113,10 +127,6 @@ export const AddDeviceModal: React.FC<AddDeviceModalProps> = ({
 
       await api.devices.create(input);
 
-      // Reset state on success
-      setStep(1);
-      setDeviceCode('');
-      setBagName('');
       onDeviceCreated();
       onClose();
     } catch (err: any) {
@@ -132,16 +142,16 @@ export const AddDeviceModal: React.FC<AddDeviceModalProps> = ({
   };
 
   return (
-    <ModalShell isOpen={isOpen} onClose={onClose} maxWidthClass="max-w-[410px]" ariaLabel="Claim Delivery Bag">
+    <ModalShell isOpen={isOpen} onClose={onClose} maxWidthClass="max-w-[420px]" ariaLabel="Claim Delivery Bag">
       {/* Header */}
-      <div className="p-[18px_20px_14px] border-b border-[var(--border)] bg-[var(--surface2)] flex items-start justify-between gap-2.5 shrink-0">
+      <div className="p-4 sm:p-5 border-b border-[#171512]/08 bg-[#F2ECE0]/60 flex items-start justify-between gap-2.5 shrink-0">
         <div>
-          <div className="font-display font-bold text-[0.95rem] text-[var(--text)]">Claim Delivery Bag</div>
-          <div className="text-[0.7rem] text-[var(--muted)] mt-0.5 font-body">Connect your bag to the dashboard</div>
+          <div className="font-editorial font-bold text-xl text-[#171512]">Claim Delivery Bag</div>
+          <div className="text-xs text-[#7B746A] mt-0.5 font-body">Connect your bag to the dashboard</div>
         </div>
         <button
           onClick={onClose}
-          className="w-[28px] h-[28px] rounded-[7px] border border-[var(--border)] bg-transparent text-[var(--muted)] hover:text-[var(--text)] hover:bg-[var(--surface3)] active:scale-[0.92] flex items-center justify-center cursor-pointer text-base transition-[transform,background-color,color] duration-[var(--dur-fast)] ease-[var(--ease-out)]"
+          className="w-8 h-8 rounded-lg border border-[#171512]/10 bg-transparent text-[#7B746A] hover:text-[#171512] hover:bg-[#171512]/05 active:scale-[0.92] flex items-center justify-center cursor-pointer transition-[transform,background-color,color] duration-[var(--dur-fast)] ease-[var(--ease-out)]"
           aria-label="Close modal"
         >
           <X className="w-4 h-4" />
@@ -149,37 +159,37 @@ export const AddDeviceModal: React.FC<AddDeviceModalProps> = ({
       </div>
 
       {/* Body */}
-      <div className="p-[18px_20px_14px] font-body overflow-y-auto flex-1 min-h-0">
+      <div className="p-5 font-body overflow-y-auto flex-1 min-h-0 bg-[#FFF9EF]">
         {/* Stepper */}
         <div className="flex items-center mb-4">
           <div className="flex items-center">
-            <div className={`w-6 h-6 rounded-full flex items-center justify-center text-[0.7rem] font-bold border transition-[background-color,border-color,color] duration-[var(--dur-fast)] ease-[var(--ease-out)] ${
-              step === 1 ? 'bg-[var(--orange)] text-white border-[var(--orange)]' : 'bg-[var(--green)] text-white border-[var(--green)]'
+            <div className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold transition-[background-color,color] duration-[var(--dur-fast)] ease-[var(--ease-out)] ${
+              step === 1 ? 'bg-[#FC4731] text-white' : 'bg-[#10B981] text-white'
             }`}>
               {step === 1 ? '1' : '✓'}
             </div>
-            <span className="text-[0.65rem] text-[var(--muted)] ml-1.5 whitespace-nowrap">Enter Code</span>
+            <span className="text-xs font-bold text-[#171512] ml-1.5 whitespace-nowrap">Enter Code</span>
           </div>
-          <div className={`flex-1 h-[1px] mx-2 min-w-[20px] transition-[background-color] duration-[var(--dur-fast)] ease-[var(--ease-out)] ${step === 2 ? 'bg-[var(--orange)]' : 'bg-[var(--border)]'}`} />
+          <div className={`flex-1 h-[1px] mx-2.5 min-w-[20px] transition-[background-color] duration-[var(--dur-fast)] ease-[var(--ease-out)] ${step === 2 ? 'bg-[#FC4731]' : 'bg-[#171512]/10'}`} />
           <div className="flex items-center">
-            <div className={`w-6 h-6 rounded-full flex items-center justify-center text-[0.7rem] font-bold border transition-[background-color,border-color,color] duration-[var(--dur-fast)] ease-[var(--ease-out)] ${
-              step === 2 ? 'bg-[var(--orange)] text-white border-[var(--orange)]' : 'bg-[var(--surface3)] text-[var(--muted)] border-[var(--border)]'
+            <div className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold transition-[background-color,color] duration-[var(--dur-fast)] ease-[var(--ease-out)] ${
+              step === 2 ? 'bg-[#FC4731] text-white' : 'bg-[#F2ECE0] text-[#7B746A]'
             }`}>
               2
             </div>
-            <span className="text-[0.65rem] text-[var(--muted)] ml-1.5 whitespace-nowrap">Name Bag</span>
+            <span className="text-xs font-bold text-[#171512] ml-1.5 whitespace-nowrap">Name Bag</span>
           </div>
         </div>
 
         {/* Error Banner */}
         {error && (
-          <div className="bg-rose-500/10 border border-rose-500/25 rounded-lg p-2.5 text-[0.72rem] text-[var(--red)] mb-3 flex items-center gap-2">
+          <div className="bg-[#E11D48]/10 border border-[#E11D48]/25 rounded-xl p-3 text-xs text-[#E11D48] mb-3 flex items-center gap-2">
             <AlertCircle className="w-4 h-4 shrink-0" />
             <span>{error}</span>
           </div>
         )}
 
-        {/* Animated Step Transition */}
+        {/* Step Transition */}
         <AnimatePresence mode="wait" custom={direction}>
           {step === 1 ? (
             <motion.div
@@ -189,10 +199,10 @@ export const AddDeviceModal: React.FC<AddDeviceModalProps> = ({
               initial="enter"
               animate="center"
               exit="exit"
-              className="space-y-3"
+              className="space-y-3.5"
             >
               <div>
-                <div className="text-[0.65rem] font-semibold text-[var(--muted)] uppercase tracking-wider mb-1.5">
+                <div className="text-xs font-bold text-[#171512] uppercase tracking-wider mb-1">
                   Device Code
                 </div>
                 <input
@@ -200,45 +210,39 @@ export const AddDeviceModal: React.FC<AddDeviceModalProps> = ({
                   placeholder="e.g. INF-XXXX-XXXX"
                   value={deviceCode}
                   onChange={(e) => setDeviceCode(e.target.value.toUpperCase())}
-                  className="w-full p-[9px_12px] rounded-[9px] bg-[var(--surface2)] border border-[var(--border)] text-[var(--text)] font-mono text-[0.9rem] uppercase tracking-wider focus:outline-none focus:border-[var(--orange)] focus:ring-2 focus:ring-orange-500/15 transition-[border-color,box-shadow] duration-[var(--dur-fast)] ease-[var(--ease-out)]"
+                  className="w-full px-3 py-2.5 rounded-xl bg-[#F2ECE0]/60 border border-[#171512]/10 text-[#171512] font-mono text-sm uppercase tracking-wider focus:outline-none focus:border-[#FC4731] transition-[border-color] duration-[var(--dur-fast)] ease-[var(--ease-out)]"
                   maxLength={20}
                   autoComplete="off"
                 />
-                <div className="text-[0.65rem] text-[var(--muted)] mt-1">
+                <div className="text-[11px] text-[#7B746A] mt-1">
                   Enter any device code — connects to your backend & ThingSpeak
                 </div>
               </div>
 
               <div>
-                <div className="text-[0.65rem] font-semibold text-[var(--muted)] uppercase tracking-wider mb-1.5">
+                <div className="text-xs font-bold text-[#171512] uppercase tracking-wider mb-1">
                   ThingSpeak Channel ID
                 </div>
                 <input
                   type="text"
-                  placeholder="e.g. 3297681"
+                  placeholder="Channel ID"
                   value={channelId}
                   onChange={(e) => setChannelId(e.target.value)}
-                  className="w-full p-[9px_12px] rounded-[9px] bg-[var(--surface2)] border border-[var(--border)] text-[var(--text)] font-mono text-[0.875rem] focus:outline-none focus:border-[var(--orange)] focus:ring-2 focus:ring-orange-500/15 transition-[border-color,box-shadow] duration-[var(--dur-fast)] ease-[var(--ease-out)]"
+                  className="w-full px-3 py-2.5 rounded-xl bg-[#F2ECE0]/60 border border-[#171512]/10 text-[#171512] font-mono text-sm focus:outline-none focus:border-[#FC4731] transition-[border-color] duration-[var(--dur-fast)] ease-[var(--ease-out)]"
                 />
               </div>
 
               <div>
-                <div className="text-[0.65rem] font-semibold text-[var(--muted)] uppercase tracking-wider mb-1.5">
-                  Read API Key <span className="text-[var(--muted)] font-normal">(Optional)</span>
+                <div className="text-xs font-bold text-[#171512] uppercase tracking-wider mb-1">
+                  Read API Key <span className="text-[#7B746A] font-normal">(Optional)</span>
                 </div>
                 <input
                   type="password"
                   placeholder="Needed only for private channels"
                   value={readApiKey}
                   onChange={(e) => setReadApiKey(e.target.value)}
-                  className="w-full p-[9px_12px] rounded-[9px] bg-[var(--surface2)] border border-[var(--border)] text-[var(--text)] font-mono text-xs focus:outline-none focus:border-[var(--orange)] transition-[border-color] duration-[var(--dur-fast)] ease-[var(--ease-out)]"
+                  className="w-full px-3 py-2.5 rounded-xl bg-[#F2ECE0]/60 border border-[#171512]/10 text-[#171512] font-mono text-xs focus:outline-none focus:border-[#FC4731] transition-[border-color] duration-[var(--dur-fast)] ease-[var(--ease-out)]"
                 />
-              </div>
-
-              <div className="bg-[var(--surface2)] border border-[var(--border)] rounded-[9px] p-3 text-[0.72rem] text-[var(--muted)] leading-relaxed">
-                <strong className="text-[var(--text)]">📡 Live Data Source</strong><br />
-                ThingSpeak Channel {channelId || '3297681'}<br />
-                Field 3 = Hot Zone Temp &nbsp;·&nbsp; Field 1 = Cold Zone Temp
               </div>
             </motion.div>
           ) : (
@@ -249,18 +253,18 @@ export const AddDeviceModal: React.FC<AddDeviceModalProps> = ({
               initial="enter"
               animate="center"
               exit="exit"
-              className="space-y-3"
+              className="space-y-3.5"
             >
-              <div className="bg-emerald-500/10 border border-emerald-500/25 rounded-[10px] p-3 flex items-start gap-2.5">
-                <CheckCircle2 className="w-5 h-5 text-[var(--green)] shrink-0 mt-0.5" />
+              <div className="bg-[#10B981]/10 border border-[#10B981]/25 rounded-xl p-3 flex items-start gap-2.5">
+                <CheckCircle2 className="w-5 h-5 text-[#10B981] shrink-0 mt-0.5" />
                 <div>
-                  <div className="font-semibold text-[var(--green)] text-[0.8rem]">Device Verified!</div>
-                  <div className="text-[0.68rem] text-[var(--muted)] mt-0.5 leading-snug">{verifyMeta}</div>
+                  <div className="font-bold text-[#10B981] text-xs">Device Verified!</div>
+                  <div className="text-xs text-[#7B746A] mt-0.5 leading-snug">{verifyMeta}</div>
                 </div>
               </div>
 
               <div>
-                <div className="text-[0.65rem] font-semibold text-[var(--muted)] uppercase tracking-wider mb-1.5">
+                <div className="text-xs font-bold text-[#171512] uppercase tracking-wider mb-1">
                   Bag Name
                 </div>
                 <input
@@ -268,12 +272,9 @@ export const AddDeviceModal: React.FC<AddDeviceModalProps> = ({
                   placeholder="e.g. Hot Bag Zone A, Cold Delivery #1"
                   value={bagName}
                   onChange={(e) => setBagName(e.target.value)}
-                  className="w-full p-[9px_12px] rounded-[9px] bg-[var(--surface2)] border border-[var(--border)] text-[var(--text)] text-[0.875rem] focus:outline-none focus:border-[var(--orange)] focus:ring-2 focus:ring-orange-500/15 transition-[border-color,box-shadow] duration-[var(--dur-fast)] ease-[var(--ease-out)]"
+                  className="w-full px-3 py-2.5 rounded-xl bg-[#F2ECE0]/60 border border-[#171512]/10 text-[#171512] text-sm focus:outline-none focus:border-[#FC4731] transition-[border-color] duration-[var(--dur-fast)] ease-[var(--ease-out)]"
                   autoFocus
                 />
-                <div className="text-[0.65rem] text-[var(--muted)] mt-1">
-                  Names with "hot" or "cold" get auto-coloured
-                </div>
               </div>
             </motion.div>
           )}
@@ -281,7 +282,7 @@ export const AddDeviceModal: React.FC<AddDeviceModalProps> = ({
       </div>
 
       {/* Footer */}
-      <div className="p-[12px_20px_18px] flex gap-2 font-body shrink-0 border-t border-[var(--border)] bg-[var(--surface2)]">
+      <div className="p-4 flex gap-2 font-body shrink-0 border-t border-[#171512]/08 bg-[#F2ECE0]/60">
         <button
           type="button"
           onClick={() => {
@@ -291,7 +292,7 @@ export const AddDeviceModal: React.FC<AddDeviceModalProps> = ({
               onClose();
             }
           }}
-          className="flex-1 p-[9px] rounded-[9px] bg-[var(--surface2)] border border-[var(--border)] text-[var(--text)] font-semibold text-[0.78rem] cursor-pointer hover:bg-[var(--surface3)] active:scale-[0.97] transition-[transform,background-color] duration-[var(--dur-fast)] ease-[var(--ease-out)]"
+          className="flex-1 py-2.5 rounded-xl bg-[#FFF9EF] border border-[#171512]/10 text-[#171512] font-bold text-xs cursor-pointer hover:bg-[#F2ECE0] active:scale-[0.97] transition-[transform,background-color] duration-[var(--dur-fast)] ease-[var(--ease-out)] min-h-[42px]"
         >
           {step === 1 ? 'Cancel' : '← Back'}
         </button>
@@ -301,11 +302,11 @@ export const AddDeviceModal: React.FC<AddDeviceModalProps> = ({
             type="button"
             onClick={handleStep1Next}
             disabled={isVerifying}
-            className="flex-[1.7] p-[9px] rounded-[9px] bg-gradient-to-r from-[var(--orange)] to-[#e83800] text-white font-bold text-[0.8rem] shadow-md shadow-orange-500/35 hover:-translate-y-0.5 active:translate-y-0 active:scale-[0.97] active:shadow-none cursor-pointer disabled:opacity-50 transition-[transform,box-shadow,opacity] duration-[var(--dur-base)] ease-[var(--ease-out)] flex items-center justify-center gap-1.5"
+            className="flex-[1.7] py-2.5 rounded-xl bg-[#FC4731] text-white font-bold text-xs shadow-sm shadow-[#FC4731]/25 hover:bg-[#e03a25] active:scale-[0.97] active:shadow-none cursor-pointer disabled:opacity-50 transition-[transform,box-shadow,opacity] duration-[var(--dur-base)] ease-[var(--ease-out)] flex items-center justify-center gap-1.5 min-h-[42px]"
           >
             {isVerifying ? (
               <>
-                <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+                <RefreshCw className="w-4 h-4 animate-spin" />
                 <span>Verifying...</span>
               </>
             ) : (
@@ -317,11 +318,11 @@ export const AddDeviceModal: React.FC<AddDeviceModalProps> = ({
             type="button"
             onClick={handleSubmit}
             disabled={isSubmitting}
-            className="flex-[1.7] p-[9px] rounded-[9px] bg-gradient-to-r from-[var(--orange)] to-[#e83800] text-white font-bold text-[0.8rem] shadow-md shadow-orange-500/35 hover:-translate-y-0.5 active:translate-y-0 active:scale-[0.97] active:shadow-none cursor-pointer disabled:opacity-50 transition-[transform,box-shadow,opacity] duration-[var(--dur-base)] ease-[var(--ease-out)] flex items-center justify-center gap-1.5"
+            className="flex-[1.7] py-2.5 rounded-xl bg-[#FC4731] text-white font-bold text-xs shadow-sm shadow-[#FC4731]/25 hover:bg-[#e03a25] active:scale-[0.97] active:shadow-none cursor-pointer disabled:opacity-50 transition-[transform,box-shadow,opacity] duration-[var(--dur-base)] ease-[var(--ease-out)] flex items-center justify-center gap-1.5 min-h-[42px]"
           >
             {isSubmitting ? (
               <>
-                <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+                <RefreshCw className="w-4 h-4 animate-spin" />
                 <span>Claiming...</span>
               </>
             ) : (
