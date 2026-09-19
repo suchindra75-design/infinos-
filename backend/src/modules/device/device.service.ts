@@ -94,8 +94,21 @@ export class DeviceService {
 
     // Encrypt ThingSpeak Read API Key if provided
     let encryptedKey: string | null = null;
-    if (input.thingSpeakReadApiKey && input.thingSpeakReadApiKey.trim().length > 0) {
-      encryptedKey = encryptText(input.thingSpeakReadApiKey.trim());
+    const rawApiKey = input.thingSpeakReadApiKey ? input.thingSpeakReadApiKey.trim() : '';
+    if (rawApiKey.length > 0) {
+      encryptedKey = encryptText(rawApiKey);
+    }
+
+    let initialMappings: any = input.fieldMappings ?? undefined;
+    if (!initialMappings) {
+      try {
+        const connTest = await thingspeakService.testConnection(channelId, rawApiKey || undefined);
+        if (connTest.connected && connTest.discoveredFields && connTest.discoveredFields.length > 0) {
+          initialMappings = connTest.discoveredFields;
+        }
+      } catch {
+        // Safe fallback; background sync will discover mappings on first poll
+      }
     }
 
     const device = await prisma.device.create({
@@ -104,9 +117,7 @@ export class DeviceService {
         name: input.name.trim(),
         thingSpeakChannelId: channelId,
         thingSpeakReadKey: encryptedKey,
-        // Omit absent JSON rather than passing JavaScript null, which Prisma
-        // distinguishes from its JSON-null sentinel. The database default stays null.
-        fieldMappings: input.fieldMappings ?? undefined,
+        fieldMappings: initialMappings ?? undefined,
         ownerId,
         settings: {
           create: {}, // Provision default thresholds defined in schema

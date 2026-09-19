@@ -1,7 +1,7 @@
 import React, { useState, useMemo, useRef, useEffect } from 'react';
 import { LineChart, Calendar, AlertCircle } from 'lucide-react';
-import { SensorReading, DeviceFieldMapping } from '../types';
-import { resolveDeviceFields } from '../utils/telemetry';
+import { SensorReading, DeviceFieldMapping, SafeDevice, AnalyticsSummary } from '../types';
+import { resolveDeviceFields, getFieldValue } from '../utils/telemetry';
 
 interface TelemetryChartProps {
   readings: SensorReading[];
@@ -11,6 +11,8 @@ interface TelemetryChartProps {
   error: string | null;
   fieldMappings?: DeviceFieldMapping[] | null;
   deviceId?: string;
+  device?: SafeDevice | null;
+  summary?: AnalyticsSummary | null;
 }
 
 interface SeriesDef {
@@ -21,15 +23,6 @@ interface SeriesDef {
   gradientId: string;
   getValue: (r: SensorReading) => number | null;
 }
-
-const toFiniteNumber = (value: unknown): number | null => {
-  if (typeof value === 'number') return Number.isFinite(value) ? value : null;
-  if (typeof value === 'string' && value.trim() !== '') {
-    const parsed = Number(value);
-    return Number.isFinite(parsed) ? parsed : null;
-  }
-  return null;
-};
 
 const COLOR_PALETTE = [
   '#FC4731', // primary orange
@@ -50,6 +43,8 @@ export const TelemetryChart: React.FC<TelemetryChartProps> = ({
   error,
   fieldMappings,
   deviceId,
+  device,
+  summary,
 }) => {
   const [activeChannel, setActiveChannel] = useState<string>('all');
   const [hoveredPoint, setHoveredPoint] = useState<{
@@ -64,6 +59,10 @@ export const TelemetryChart: React.FC<TelemetryChartProps> = ({
   const prevDeviceIdRef = useRef<string | undefined>(deviceId);
   const [isInitialDraw, setIsInitialDraw] = useState<boolean>(true);
   const [animationStarted, setAnimationStarted] = useState<boolean>(false);
+
+  useEffect(() => {
+    setActiveChannel('all');
+  }, [deviceId, fieldMappings]);
 
   useEffect(() => {
     if (prevDeviceIdRef.current !== deviceId) {
@@ -102,8 +101,8 @@ export const TelemetryChart: React.FC<TelemetryChartProps> = ({
   // Build series definitions based on resolved field mappings & discovered readings
   const seriesDefs: SeriesDef[] = useMemo(() => {
     const resolved = resolveDeviceFields(
-      fieldMappings ? ({ fieldMappings } as any) : null,
-      null,
+      device || (fieldMappings ? ({ fieldMappings } as any) : null),
+      summary || null,
       readings
     );
 
@@ -119,21 +118,7 @@ export const TelemetryChart: React.FC<TelemetryChartProps> = ({
         unit: field.unit,
         color,
         gradientId: `gradient_${field.fieldKey}`,
-        getValue: (r: SensorReading) => {
-          if (r.fieldValues && r.fieldValues[field.fieldKey] !== undefined && r.fieldValues[field.fieldKey] !== null) {
-            return toFiniteNumber(r.fieldValues[field.fieldKey]);
-          }
-          if (field.zone === 'cold' || (field.fieldKey === 'field1' && field.metric === 'temperature')) {
-            return toFiniteNumber(r.coldTemperature);
-          }
-          if (field.zone === 'hot' || (field.fieldKey === 'field3' && field.metric === 'temperature')) {
-            return toFiniteNumber(r.hotTemperature);
-          }
-          if (field.metric === 'humidity' || field.fieldKey === 'field4') {
-            return toFiniteNumber(r.humidity);
-          }
-          return null;
-        },
+        getValue: (r: SensorReading) => getFieldValue(field.fieldKey, field, r, null),
       };
     });
   }, [fieldMappings, readings]);
@@ -144,6 +129,11 @@ export const TelemetryChart: React.FC<TelemetryChartProps> = ({
     return exists ? activeChannel : 'all';
   }, [activeChannel, seriesDefs]);
 
+  const visibleSeriesDefs = useMemo(() => {
+    if (validActiveChannel === 'all') return seriesDefs;
+    return seriesDefs.filter((s) => s.key === validActiveChannel);
+  }, [seriesDefs, validActiveChannel]);
+
   const bounds = useMemo(() => {
     if (readings.length === 0) return { min: 0, max: 100 };
 
@@ -151,13 +141,11 @@ export const TelemetryChart: React.FC<TelemetryChartProps> = ({
     let max = -Infinity;
 
     readings.forEach((r) => {
-      seriesDefs.forEach((s) => {
-        if (validActiveChannel === 'all' || validActiveChannel === s.key) {
-          const val = s.getValue(r);
-          if (val !== null) {
-            min = Math.min(min, val);
-            max = Math.max(max, val);
-          }
+      visibleSeriesDefs.forEach((s) => {
+        const val = s.getValue(r);
+        if (val !== null) {
+          min = Math.min(min, val);
+          max = Math.max(max, val);
         }
       });
     });
@@ -171,7 +159,7 @@ export const TelemetryChart: React.FC<TelemetryChartProps> = ({
       min: Math.floor(min - span * 0.1),
       max: Math.ceil(max + span * 0.1),
     };
-  }, [readings, seriesDefs, validActiveChannel]);
+  }, [readings, visibleSeriesDefs]);
 
   const getX = (index: number) => {
     if (readings.length <= 1) return padding.left + chartWidth / 2;
@@ -395,11 +383,8 @@ export const TelemetryChart: React.FC<TelemetryChartProps> = ({
             )}
 
             {/* Gradient Area Fills */}
-            {seriesDefs.map((s) => {
-              const isVisible = validActiveChannel === 'all' || validActiveChannel === s.key;
-              if (!isVisible) return null;
-              const targetOpacity = isVisible ? 1 : 0.2;
-              const currentOpacity = isInitialDraw ? (animationStarted ? targetOpacity : 0) : targetOpacity;
+            {visibleSeriesDefs.map((s) => {
+              const currentOpacity = isInitialDraw ? (animationStarted ? 1 : 0) : 1;
 
               return (
                 <path
@@ -415,21 +400,17 @@ export const TelemetryChart: React.FC<TelemetryChartProps> = ({
             })}
 
             {/* Series Lines */}
-            {seriesDefs.map((s) => {
-              const isVisible = validActiveChannel === 'all' || validActiveChannel === s.key;
-              if (!isVisible) return null;
-              const targetOpacity = isVisible ? 1 : 0.2;
-
+            {visibleSeriesDefs.map((s) => {
               const lineStyle: React.CSSProperties = isInitialDraw
                 ? {
                     strokeDasharray: 1000,
                     strokeDashoffset: animationStarted ? 0 : 1000,
-                    opacity: targetOpacity,
+                    opacity: 1,
                     transition:
                       'stroke-dashoffset 700ms cubic-bezier(0.16, 1, 0.3, 1) 180ms, opacity 700ms cubic-bezier(0.16, 1, 0.3, 1) 180ms',
                   }
                 : {
-                    opacity: targetOpacity,
+                    opacity: 1,
                     transition: 'd 320ms cubic-bezier(0.16, 1, 0.3, 1), stroke 200ms ease-out',
                   };
 
@@ -524,7 +505,7 @@ export const TelemetryChart: React.FC<TelemetryChartProps> = ({
                 })}
               </div>
               <div className="space-y-1 font-data text-[11px]">
-                {seriesDefs.map((s) => {
+                {visibleSeriesDefs.map((s) => {
                   const val = s.getValue(hoveredPoint.reading);
                   return (
                     <div key={s.key} className="flex items-center justify-between gap-3" style={{ color: s.color }}>
@@ -541,20 +522,17 @@ export const TelemetryChart: React.FC<TelemetryChartProps> = ({
 
       {/* Visual Chart Legend */}
       <div className="pt-3 border-t border-[#171512]/08 flex flex-wrap items-center justify-center gap-x-6 gap-y-2 text-xs text-[#7B746A] font-body">
-        {seriesDefs.map((s) => {
-          const isActive = validActiveChannel === s.key;
-          return (
-            <button
-              key={s.key}
-              onClick={() => setActiveChannel(isActive ? 'all' : s.key)}
-              className="flex items-center gap-2 cursor-pointer transition-[color] duration-[var(--dur-fast)] ease-[var(--ease-out)] hover:text-[#171512]"
-              style={{ color: isActive ? s.color : undefined, fontWeight: isActive ? 'bold' : '500' }}
-            >
-              <span className="w-3 h-1.5 rounded-full" style={{ backgroundColor: s.color }} />
-              <span>{s.label}{s.unit ? ` (${s.unit})` : ''}</span>
-            </button>
-          );
-        })}
+        {visibleSeriesDefs.map((s) => (
+          <button
+            key={s.key}
+            onClick={() => setActiveChannel(validActiveChannel === s.key ? 'all' : s.key)}
+            className="flex items-center gap-2 cursor-pointer transition-[color] duration-[var(--dur-fast)] ease-[var(--ease-out)] hover:text-[#171512]"
+            style={{ color: s.color, fontWeight: 'bold' }}
+          >
+            <span className="w-3 h-1.5 rounded-full" style={{ backgroundColor: s.color }} />
+            <span>{s.label}{s.unit ? ` (${s.unit})` : ''}</span>
+          </button>
+        ))}
       </div>
     </div>
   );

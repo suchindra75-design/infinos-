@@ -63,6 +63,24 @@ export class DeviceSyncService {
         fieldMappings: Array.isArray(device.fieldMappings) ? device.fieldMappings : null,
       });
 
+      // Auto-discover and persist channel field mappings if not explicitly configured on device
+      if (
+        (!device.fieldMappings || !Array.isArray(device.fieldMappings) || device.fieldMappings.length === 0) &&
+        feedsResult.channel
+      ) {
+        const sampleFeed = Array.isArray(feedsResult.readings) && feedsResult.readings.length > 0 ? (feedsResult.readings[0] as any) : undefined;
+        const discovered = thingspeakService.discoverChannelFields(feedsResult.channel, sampleFeed);
+        if (discovered && discovered.length > 0) {
+          await prisma.device
+            .update({
+              where: { id: device.id },
+              data: { fieldMappings: discovered as any },
+            })
+            .catch(() => {});
+          device.fieldMappings = discovered;
+        }
+      }
+
       const rawReadings = feedsResult.readings || [];
       let newReadingsCount = 0;
       let newestRecordedAt: Date | null = device.lastSeenAt;

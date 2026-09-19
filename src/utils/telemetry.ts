@@ -77,21 +77,14 @@ export function resolveDeviceFields(
       .sort((a, b) => (Number(a.replace('field', '')) || 0) - (Number(b.replace('field', '')) || 0))
       .map((key) => {
         const num = Number(key.replace('field', '')) || 1;
-        if (key === 'field1')
-          return { fieldNumber: 1, fieldKey: 'field1', label: 'Cold Compartment', metric: 'temperature', zone: 'cold', unit: '°C' };
-        if (key === 'field3')
-          return { fieldNumber: 3, fieldKey: 'field3', label: 'Hot Compartment', metric: 'temperature', zone: 'hot', unit: '°C' };
-        if (key === 'field4')
-          return { fieldNumber: 4, fieldKey: 'field4', label: 'Relative Humidity', metric: 'humidity', zone: 'ambient', unit: '%' };
         return { fieldNumber: num, fieldKey: key, label: `Field ${num}`, metric: 'other', zone: 'none', unit: '' };
       });
   }
 
-  // 5. Default 3-field setup for standard cold-chain bag
+  // 5. Fallback default if no device, summary, or readings are available
   return [
-    { fieldNumber: 1, fieldKey: 'field1', label: 'Cold Compartment', metric: 'temperature', zone: 'cold', unit: '°C' },
-    { fieldNumber: 3, fieldKey: 'field3', label: 'Hot Compartment', metric: 'temperature', zone: 'hot', unit: '°C' },
-    { fieldNumber: 4, fieldKey: 'field4', label: 'Relative Humidity', metric: 'humidity', zone: 'ambient', unit: '%' },
+    { fieldNumber: 1, fieldKey: 'field1', label: 'Field 1', metric: 'other', zone: 'none', unit: '' },
+    { fieldNumber: 2, fieldKey: 'field2', label: 'Field 2', metric: 'other', zone: 'none', unit: '' },
   ];
 }
 
@@ -101,29 +94,95 @@ export function getFieldValue(
   reading?: SensorReading | null,
   summary?: AnalyticsSummary | null
 ): number | null {
-  if (reading?.fieldValues && reading.fieldValues[fieldKey] !== undefined && reading.fieldValues[fieldKey] !== null) {
-    const val = Number(reading.fieldValues[fieldKey]);
+  // 1. Check reading.fieldValues
+  if (reading?.fieldValues) {
+    let fv = reading.fieldValues as any;
+    if (typeof fv === 'string') {
+      try {
+        fv = JSON.parse(fv);
+      } catch {
+        // ignore
+      }
+    }
+    if (fv && typeof fv === 'object' && fv[fieldKey] !== undefined && fv[fieldKey] !== null) {
+      const val = Number(fv[fieldKey]);
+      if (Number.isFinite(val)) return val;
+    }
+  }
+
+  // 2. Check summary.latestFieldValues
+  if (summary?.latestFieldValues) {
+    let lfv = summary.latestFieldValues as any;
+    if (typeof lfv === 'string') {
+      try {
+        lfv = JSON.parse(lfv);
+      } catch {
+        // ignore
+      }
+    }
+    if (lfv && typeof lfv === 'object' && lfv[fieldKey] !== undefined && lfv[fieldKey] !== null) {
+      const val = Number(lfv[fieldKey]);
+      if (Number.isFinite(val)) return val;
+    }
+  }
+
+  // 3. Check summary.fieldSummaries
+  if (summary?.fieldSummaries && summary.fieldSummaries[fieldKey]?.latest !== undefined && summary.fieldSummaries[fieldKey]?.latest !== null) {
+    const val = Number(summary.fieldSummaries[fieldKey].latest);
     if (Number.isFinite(val)) return val;
   }
-  if (summary?.latestFieldValues && summary.latestFieldValues[fieldKey] !== undefined && summary.latestFieldValues[fieldKey] !== null) {
-    const val = Number(summary.latestFieldValues[fieldKey]);
-    if (Number.isFinite(val)) return val;
+
+  // 4. Legacy/Standard column fallbacks
+  const num = fieldMapping.fieldNumber || Number(fieldKey.replace('field', '')) || 0;
+
+  const isCold =
+    fieldMapping.zone === 'cold' ||
+    fieldKey === 'field1' ||
+    (num === 1 && fieldMapping.metric === 'temperature');
+
+  const isHot =
+    fieldMapping.zone === 'hot' ||
+    fieldKey === 'field2' ||
+    fieldKey === 'field3' ||
+    ((num === 2 || num === 3) && fieldMapping.metric === 'temperature');
+
+  const isHumidity =
+    fieldMapping.metric === 'humidity' ||
+    fieldKey === 'field4' ||
+    num === 4;
+
+  if (isCold) {
+    if (reading?.coldTemperature != null) {
+      const val = Number(reading.coldTemperature);
+      if (Number.isFinite(val)) return val;
+    }
+    if (summary?.latest?.coldTemperature != null) {
+      const val = Number(summary.latest.coldTemperature);
+      if (Number.isFinite(val)) return val;
+    }
   }
-  if (summary?.fieldSummaries && summary.fieldSummaries[fieldKey]?.latest !== undefined) {
-    const val = summary.fieldSummaries[fieldKey].latest;
-    if (val !== null && Number.isFinite(val)) return val;
+
+  if (isHot) {
+    if (reading?.hotTemperature != null) {
+      const val = Number(reading.hotTemperature);
+      if (Number.isFinite(val)) return val;
+    }
+    if (summary?.latest?.hotTemperature != null) {
+      const val = Number(summary.latest.hotTemperature);
+      if (Number.isFinite(val)) return val;
+    }
   }
-  if (fieldMapping.zone === 'cold' || (fieldKey === 'field1' && fieldMapping.metric === 'temperature')) {
-    if (reading?.coldTemperature != null) return reading.coldTemperature;
-    if (summary?.latest?.coldTemperature != null) return summary.latest.coldTemperature;
+
+  if (isHumidity) {
+    if (reading?.humidity != null) {
+      const val = Number(reading.humidity);
+      if (Number.isFinite(val)) return val;
+    }
+    if (summary?.latest?.humidity != null) {
+      const val = Number(summary.latest.humidity);
+      if (Number.isFinite(val)) return val;
+    }
   }
-  if (fieldMapping.zone === 'hot' || (fieldKey === 'field3' && fieldMapping.metric === 'temperature')) {
-    if (reading?.hotTemperature != null) return reading.hotTemperature;
-    if (summary?.latest?.hotTemperature != null) return summary.latest.hotTemperature;
-  }
-  if (fieldMapping.metric === 'humidity' || fieldKey === 'field4') {
-    if (reading?.humidity != null) return reading.humidity;
-    if (summary?.latest?.humidity != null) return summary.latest.humidity;
-  }
+
   return null;
 }

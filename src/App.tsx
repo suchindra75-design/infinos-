@@ -377,14 +377,14 @@ const DashboardContent: React.FC = () => {
       />
 
       {/* Main Content Area */}
-      <main className="flex-1 w-full max-w-[1180px] mx-auto px-4 py-6 pb-24 md:pb-12">
+      <main className="flex-1 w-full max-w-[1180px] mx-auto px-3 sm:px-4 py-4 sm:py-6 pb-24 md:pb-12 min-w-0">
         {/* DASHBOARD TAB */}
         {activeNavTab === 'dashboard' && (
           <div className="space-y-6 animate-in fade-in duration-150">
             {/* Page Header */}
             <div className="flex items-start justify-between gap-3 mb-6">
-              <div>
-                <h1 className="font-editorial text-2xl sm:text-3xl text-[#171512] leading-tight font-normal tracking-tight">
+              <div className="min-w-0">
+                <h1 className="font-editorial text-2xl sm:text-3xl text-[#171512] leading-tight font-normal tracking-tight truncate">
                   Smart Bag Dashboard
                 </h1>
                 <p className="text-xs text-[#7B746A] mt-1 font-body">
@@ -393,7 +393,7 @@ const DashboardContent: React.FC = () => {
               </div>
               <button
                 onClick={handleRefreshAll}
-                className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-full bg-[#FFF9EF] border border-[#171512]/[0.08] text-[#7B746A] hover:text-[#171512] hover:border-[#171512]/[0.2] text-xs font-medium cursor-pointer transition-all duration-[var(--dur-fast)] ease-[var(--ease-out)] shadow-xs"
+                className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-full bg-[#FFF9EF] border border-[#171512]/[0.08] text-[#7B746A] hover:text-[#171512] hover:border-[#171512]/[0.2] text-xs font-medium cursor-pointer transition-all duration-[var(--dur-fast)] ease-[var(--ease-out)] shadow-xs shrink-0"
               >
                 <svg
                   width="13"
@@ -414,7 +414,7 @@ const DashboardContent: React.FC = () => {
             </div>
 
             {/* Stats Row */}
-            <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-6">
+            <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-4 gap-2.5 sm:gap-3 mb-6">
               <StatCard
                 label="Total Bags"
                 value={totalBagsCount}
@@ -449,12 +449,12 @@ const DashboardContent: React.FC = () => {
             </div>
 
             {/* Section Title: Your Bags */}
-            <div className="flex items-center justify-between mb-3">
-              <h2 className="text-xs font-bold tracking-widest uppercase text-[#7B746A] flex items-center gap-2 font-display">
-                <span className="w-1.5 h-1.5 rounded-full bg-[#FC4731]" />
+            <div className="flex items-center justify-between gap-2 mb-3 min-w-0">
+              <h2 className="text-xs font-bold tracking-widest uppercase text-[#7B746A] flex items-center gap-2 font-display truncate">
+                <span className="w-1.5 h-1.5 rounded-full bg-[#FC4731] shrink-0" />
                 <span>Your Bags</span>
               </h2>
-              <span className="text-[11px] text-[#7B746A] font-mono">{devices.length} active</span>
+              <span className="text-[11px] text-[#7B746A] font-mono shrink-0">{devices.length} active</span>
             </div>
 
             {/* Devices Grid */}
@@ -526,6 +526,8 @@ const DashboardContent: React.FC = () => {
               {selectedDevice && (
                 <TelemetryChart
                   deviceId={selectedDevice.id}
+                  device={selectedDevice}
+                  summary={summary}
                   readings={timeseries}
                   isLoading={isTelemetryLoading}
                   timeRange={timeRange}
@@ -606,7 +608,7 @@ const DashboardContent: React.FC = () => {
             </div>
 
             {/* 4 Analytics Stat Cards */}
-            <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-6">
+            <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-4 gap-2.5 sm:gap-3 mb-6">
               <StatCard
                 label="Total Readings"
                 value={totalReadingsCount}
