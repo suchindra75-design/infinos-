@@ -1,9 +1,15 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
+
+import '../core/networking/connectivity_service.dart';
+import '../core/notifications/notification_service.dart';
+import '../core/theme/app_typography.dart';
+import 'alerts/alerts_screen.dart';
+import 'analytics/analytics_screen.dart';
 import 'dashboard/dashboard_screen.dart';
+import 'devices/device_provider.dart';
 import 'devices/devices_screen.dart';
 import 'telemetry/telemetry_screen.dart';
-import 'analytics/analytics_screen.dart';
-import 'alerts/alerts_screen.dart';
 
 class NavigationShell extends StatefulWidget {
   const NavigationShell({super.key});
@@ -24,11 +30,74 @@ class _NavigationShellState extends State<NavigationShell> {
   ];
 
   @override
+  void initState() {
+    super.initState();
+    _initNotifications();
+    _setupConnectivityListener();
+  }
+
+  void _initNotifications() async {
+    final notificationService = NotificationService();
+    await notificationService.initialize();
+    await notificationService.requestPermission();
+    notificationService.onNotificationTap = (alertId) {
+      if (mounted) {
+        setState(() {
+          _currentIndex = 4; // Alerts tab
+        });
+      }
+    };
+  }
+
+  void _setupConnectivityListener() {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final connectivity = context.read<ConnectivityService>();
+      connectivity.addOnReconnect(() {
+        if (mounted) {
+          context.read<DeviceProvider>().fetchDevices();
+        }
+      });
+    });
+  }
+
+  @override
   Widget build(BuildContext context) {
+    final isOffline = context.watch<ConnectivityService>().isOffline;
+
     return Scaffold(
-      body: IndexedStack(
-        index: _currentIndex,
-        children: _screens,
+      body: SafeArea(
+        top: false,
+        child: Column(
+          children: [
+            if (isOffline)
+              Container(
+                width: double.infinity,
+                color: Colors.amber.shade800,
+                padding: const EdgeInsets.symmetric(vertical: 6, horizontal: 16),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    const Icon(Icons.wifi_off_rounded, size: 14, color: Colors.white),
+                    const SizedBox(width: 8),
+                    Text(
+                      'Offline — Showing cached data',
+                      style: AppTypography.body(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w600,
+                        color: Colors.white,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            Expanded(
+              child: IndexedStack(
+                index: _currentIndex,
+                children: _screens,
+              ),
+            ),
+          ],
+        ),
       ),
       bottomNavigationBar: BottomNavigationBar(
         currentIndex: _currentIndex,

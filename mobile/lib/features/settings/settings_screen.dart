@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../auth/auth_provider.dart';
 import '../../core/config/app_config.dart';
+import '../../core/networking/connectivity_service.dart';
+import '../../core/notifications/notification_service.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_typography.dart';
 import '../../models/user.dart';
@@ -53,6 +55,14 @@ class SettingsScreen extends StatelessWidget {
               ),
               SliverToBoxAdapter(
                 child: _SecuritySection(auth: auth),
+              ),
+
+              // ── Notifications & Network Section ──
+              SliverToBoxAdapter(
+                child: _SectionHeader(title: 'NOTIFICATIONS & NETWORK'),
+              ),
+              SliverToBoxAdapter(
+                child: _NotificationsAndNetworkSection(),
               ),
 
               // ── About Section ──
@@ -492,6 +502,85 @@ class _SecuritySectionState extends State<_SecuritySection> {
                             ),
                           ),
                   ],
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+// ─────────────────────────────────────────────
+// Notifications & Network Section
+// ─────────────────────────────────────────────
+class _NotificationsAndNetworkSection extends StatefulWidget {
+  @override
+  State<_NotificationsAndNetworkSection> createState() =>
+      _NotificationsAndNetworkSectionState();
+}
+
+class _NotificationsAndNetworkSectionState
+    extends State<_NotificationsAndNetworkSection> {
+  bool _requestingPermission = false;
+  String? _permissionStatusText;
+
+  Future<void> _handlePermissionRequest() async {
+    setState(() {
+      _requestingPermission = true;
+    });
+    final granted = await NotificationService().requestPermission();
+    if (mounted) {
+      setState(() {
+        _requestingPermission = false;
+        _permissionStatusText = granted ? 'Permission Granted' : 'Permission Denied';
+      });
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final connectivity = context.watch<ConnectivityService>();
+    final isOnline = connectivity.isOnline;
+
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16),
+      child: Container(
+        decoration: BoxDecoration(
+          color: AppColors.surface,
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: AppColors.border),
+        ),
+        child: Column(
+          children: [
+            _SettingsTile(
+              icon: Icons.notifications_active_outlined,
+              title: 'Local Alert Notifications',
+              subtitle: _permissionStatusText ?? 'Active for local device alerts',
+              trailingWidget: IconButton(
+                icon: _requestingPermission
+                    ? const SizedBox(
+                        width: 16,
+                        height: 16,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      )
+                    : const Icon(Icons.security, size: 20, color: AppColors.primaryOrange),
+                onPressed: _requestingPermission ? null : _handlePermissionRequest,
+                tooltip: 'Check / Request Notification Permission',
+              ),
+            ),
+            Container(height: 1, color: AppColors.border),
+            _SettingsTile(
+              icon: isOnline ? Icons.wifi_rounded : Icons.wifi_off_rounded,
+              title: 'Network Connection',
+              subtitle: isOnline ? 'Connected to internet' : 'Offline mode active',
+              trailingWidget: Container(
+                width: 8,
+                height: 8,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: isOnline ? AppColors.statusOnline : AppColors.statusOffline,
                 ),
               ),
             ),

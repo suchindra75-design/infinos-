@@ -1,6 +1,7 @@
 import 'package:flutter/foundation.dart';
 import '../../core/config/app_config.dart';
 import '../../core/networking/api_client.dart';
+import '../../core/notifications/notification_service.dart';
 import '../../models/alert.dart';
 import '../../models/device.dart';
 import '../../models/telemetry.dart';
@@ -85,6 +86,7 @@ class DeviceProvider extends ChangeNotifier {
     _alertsErrorMessage = null;
     _alertsStatusFilter = 'all';
     _isResolvingAlert = false;
+    NotificationService().clearAll();
     notifyListeners();
   }
 
@@ -275,9 +277,11 @@ class DeviceProvider extends ChangeNotifier {
 
       // Fleet-wide active alerts count is always derived accurately
       _activeAlertsCount = _alerts.where((a) => !a.isResolved).length;
+
+      // Process notifications for newly detected unresolved alerts
+      NotificationService().processAlerts(_alerts);
     } catch (e) {
       _alertsErrorMessage = 'Failed to load alerts: $e';
-      _alerts = [];
     } finally {
       _isAlertsLoading = false;
       notifyListeners();

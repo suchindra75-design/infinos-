@@ -3,6 +3,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:provider/provider.dart';
 import 'package:infinos_mobile/auth/auth_provider.dart';
 import 'package:infinos_mobile/core/networking/api_client.dart';
+import 'package:infinos_mobile/core/networking/connectivity_service.dart';
 import 'package:infinos_mobile/core/storage/secure_storage_service.dart';
 import 'package:infinos_mobile/features/settings/settings_screen.dart';
 import 'package:infinos_mobile/models/user.dart';
@@ -42,6 +43,9 @@ void main() {
   Widget buildTestableWidget({required AuthProvider authProvider}) {
     return MultiProvider(
       providers: [
+        ChangeNotifierProvider<ConnectivityService>(
+          create: (_) => ConnectivityService(),
+        ),
         ChangeNotifierProvider<AuthProvider>.value(value: authProvider),
       ],
       child: const MaterialApp(

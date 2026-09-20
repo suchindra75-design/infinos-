@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 import 'auth/auth_provider.dart';
 import 'auth/login_screen.dart';
 import 'core/networking/api_client.dart';
+import 'core/networking/connectivity_service.dart';
 import 'core/storage/secure_storage_service.dart';
 import 'core/theme/app_colors.dart';
 import 'core/theme/app_theme.dart';
@@ -25,6 +26,9 @@ class InfinosApp extends StatelessWidget {
 
     return MultiProvider(
       providers: [
+        ChangeNotifierProvider<ConnectivityService>(
+          create: (_) => ConnectivityService()..initialize(),
+        ),
         ChangeNotifierProvider<AuthProvider>(
           create: (_) => AuthProvider(
             apiClient: apiClient,
