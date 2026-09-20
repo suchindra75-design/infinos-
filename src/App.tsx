@@ -212,7 +212,12 @@ const DashboardContent: React.FC = () => {
       }
 
       if (statusRes.status === 'fulfilled') {
-        setStatusInfo(statusRes.value);
+        const freshStatus = statusRes.value;
+        setStatusInfo(freshStatus);
+        setDevices((prev) =>
+          prev.map((d) => (d.id === device.id ? { ...d, status: freshStatus.status } : d))
+        );
+        setSelectedDevice((prev) => (prev && prev.id === device.id ? { ...prev, status: freshStatus.status } : prev));
       }
 
       if (timeseriesRes.status === 'fulfilled') {
@@ -317,7 +322,7 @@ const DashboardContent: React.FC = () => {
 
   // Stats Calculations for Dashboard
   const totalBagsCount = devices.length;
-  const onlineBagsCount = devices.filter((d) => d.status === 'ONLINE').length || totalBagsCount;
+  const onlineBagsCount = devices.filter((d) => d.status === 'ONLINE').length;
   const latestHotReading = summary?.latest?.hotTemperature ?? null;
   const latestColdReading = summary?.latest?.coldTemperature ?? null;
   const avgHotTempStr = latestHotReading != null ? `${latestHotReading.toFixed(1)}` : '—';

@@ -145,10 +145,31 @@ export const LiveTelemetryCard: React.FC<LiveTelemetryProps> = ({
               </div>
 
               <div className="flex items-center gap-2.5 shrink-0">
-                <div className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-[#10B981]/10 border border-[#10B981]/20 text-[#10B981] text-[10px] font-bold tracking-wide">
-                  <span className="w-1.5 h-1.5 rounded-full bg-[#10B981] animate-live-blink" />
-                  <span>LIVE</span>
-                </div>
+                {(() => {
+                  const currentStatus = statusInfo?.status || selectedDevice.status;
+                  if (currentStatus === 'ONLINE') {
+                    return (
+                      <div className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-[#10B981]/10 border border-[#10B981]/20 text-[#10B981] text-[10px] font-bold tracking-wide">
+                        <span className="w-1.5 h-1.5 rounded-full bg-[#10B981] animate-live-blink" />
+                        <span>ONLINE</span>
+                      </div>
+                    );
+                  }
+                  if (currentStatus === 'STALE') {
+                    return (
+                      <div className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-amber-500/10 border border-amber-500/20 text-amber-600 text-[10px] font-bold tracking-wide">
+                        <span className="w-1.5 h-1.5 rounded-full bg-amber-500" />
+                        <span>STALE</span>
+                      </div>
+                    );
+                  }
+                  return (
+                    <div className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-[#7B746A]/10 border border-[#7B746A]/20 text-[#7B746A] text-[10px] font-bold tracking-wide">
+                      <span className="w-1.5 h-1.5 rounded-full bg-[#7B746A]" />
+                      <span>OFFLINE</span>
+                    </div>
+                  );
+                })()}
                 {onExportPdf && (
                   <button
                     onClick={onExportPdf}

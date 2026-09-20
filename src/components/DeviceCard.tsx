@@ -57,14 +57,31 @@ export const DeviceCard: React.FC<DeviceCardProps> = ({
         <div className="w-9 h-9 rounded-xl bg-[#F2ECE0] flex items-center justify-center text-base shadow-xs">
           📦
         </div>
-        <div className={`flex items-center gap-1.5 px-2.5 py-0.5 rounded-full border text-[10px] font-bold tracking-wide ${
-          isOnline
-            ? 'bg-[#10B981]/10 border-[#10B981]/25 text-[#10B981]'
-            : 'bg-[#7B746A]/10 border-[#7B746A]/20 text-[#7B746A]'
-        }`}>
-          <span className={`w-1.5 h-1.5 rounded-full ${isOnline ? 'bg-[#10B981] animate-live-blink' : 'bg-[#7B746A]'}`} />
-          <span>{isOnline ? 'ONLINE' : 'OFFLINE'}</span>
-        </div>
+        {(() => {
+          const status = device.status;
+          if (status === 'ONLINE') {
+            return (
+              <div className="flex items-center gap-1.5 px-2.5 py-0.5 rounded-full border text-[10px] font-bold tracking-wide bg-[#10B981]/10 border-[#10B981]/25 text-[#10B981]">
+                <span className="w-1.5 h-1.5 rounded-full bg-[#10B981] animate-live-blink" />
+                <span>ONLINE</span>
+              </div>
+            );
+          }
+          if (status === 'STALE') {
+            return (
+              <div className="flex items-center gap-1.5 px-2.5 py-0.5 rounded-full border text-[10px] font-bold tracking-wide bg-amber-500/10 border-amber-500/25 text-amber-600">
+                <span className="w-1.5 h-1.5 rounded-full bg-amber-500" />
+                <span>STALE</span>
+              </div>
+            );
+          }
+          return (
+            <div className="flex items-center gap-1.5 px-2.5 py-0.5 rounded-full border text-[10px] font-bold tracking-wide bg-[#7B746A]/10 border-[#7B746A]/20 text-[#7B746A]">
+              <span className="w-1.5 h-1.5 rounded-full bg-[#7B746A]" />
+              <span>OFFLINE</span>
+            </div>
+          );
+        })()}
       </div>
 
       {/* Name & Code */}

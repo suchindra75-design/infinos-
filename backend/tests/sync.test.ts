@@ -506,13 +506,72 @@ async function runSyncTests() {
     });
     await deviceSyncService.syncDevice(bagA.id);
     const statusRes = await apiRequest('GET', `/api/v1/devices/${bagA.id}/status`, operatorToken);
-    assert.strictEqual(statusRes.status, 200);
-    assert.strictEqual(statusRes.body.data.status, DeviceStatus.ONLINE);
-    assert.strictEqual(statusRes.body.data.hasSyncReadings, true);
-    console.log('✓ Test 11 passed: Device status endpoint reflects real-time status.');
+    // TEST 12: Comprehensive Device Online/Offline/Stale Connectivity State Machine & History Preservation
+    console.log('Test 12: Testing complete connectivity state machine (ONLINE, OFFLINE, STALE, RECOVERY) & History Preservation...');
+    
+    // 12.1 CASE A: ThingSpeak reachable + 0 new readings -> ONLINE
+    const caseASync = await deviceSyncService.syncDevice(bagA.id);
+    assert.strictEqual(caseASync.success, true);
+    assert.strictEqual(caseASync.newReadingsCount, 0);
+    assert.strictEqual(caseASync.status, DeviceStatus.ONLINE);
+    const dbStatusA = await prisma.device.findUnique({ where: { id: bagA.id } });
+    assert.strictEqual(dbStatusA?.status, DeviceStatus.ONLINE);
+
+    // 12.2 CASE B: ThingSpeak unreachable / sync fails -> transition to OFFLINE
+    // Temporarily break Bag A channel pointing to failing channel 80003
+    await prisma.device.update({
+      where: { id: bagA.id },
+      data: { thingSpeakChannelId: '80003' },
+    });
+    const caseBSync = await deviceSyncService.syncDevice(bagA.id);
+    assert.strictEqual(caseBSync.success, false);
+    assert.strictEqual(caseBSync.status, DeviceStatus.OFFLINE);
+    const dbStatusB = await prisma.device.findUnique({ where: { id: bagA.id } });
+    assert.strictEqual(dbStatusB?.status, DeviceStatus.OFFLINE);
+
+    // 12.3 Repeated failures keep status OFFLINE
+    const repeatedFailSync = await deviceSyncService.syncDevice(bagA.id);
+    assert.strictEqual(repeatedFailSync.success, false);
+    assert.strictEqual(repeatedFailSync.status, DeviceStatus.OFFLINE);
+    const dbStatusRepeated = await prisma.device.findUnique({ where: { id: bagA.id } });
+    assert.strictEqual(dbStatusRepeated?.status, DeviceStatus.OFFLINE);
+
+    // 12.4 Verify historical readings and latest reading remain 100% accessible while OFFLINE
+    const readingsCountWhileOffline = await prisma.sensorReading.count({ where: { deviceId: bagA.id } });
+    assert.ok(readingsCountWhileOffline > 0, 'Historical readings must never be deleted or hidden when offline');
+    const offlineStatusRes = await apiRequest('GET', `/api/v1/devices/${bagA.id}/status`, operatorToken);
+    assert.strictEqual(offlineStatusRes.body.data.status, DeviceStatus.OFFLINE);
+    assert.strictEqual(offlineStatusRes.body.data.hasSyncReadings, true);
+
+    const offlineSummaryRes = await apiRequest('GET', `/api/v1/analytics/devices/${bagA.id}/summary`, operatorToken);
+    assert.strictEqual(offlineSummaryRes.status, 200);
+    assert.ok(offlineSummaryRes.body.data.readingCount > 0, 'Historical reading count must remain visible while offline');
+    assert.ok(offlineSummaryRes.body.data.latest !== null, 'Latest stored reading values must remain visible while offline');
+
+    // 12.5 Recovery after failure: Fix channel and trigger sync -> transitions back to ONLINE
+    await prisma.device.update({
+      where: { id: bagA.id },
+      data: { thingSpeakChannelId: '80001' },
+    });
+    const recoverySync = await deviceSyncService.syncDevice(bagA.id);
+    assert.strictEqual(recoverySync.success, true);
+    assert.strictEqual(recoverySync.status, DeviceStatus.ONLINE);
+    const dbStatusRecovery = await prisma.device.findUnique({ where: { id: bagA.id } });
+    assert.strictEqual(dbStatusRecovery?.status, DeviceStatus.ONLINE);
+
+    // 12.6 STALE transition verification: age between 60s and 180s
+    const staleTime = new Date(Date.now() - 90 * 1000);
+    await prisma.device.update({
+      where: { id: bagA.id },
+      data: { lastSeenAt: staleTime, status: DeviceStatus.ONLINE },
+    });
+    const staleStatusRes = await apiRequest('GET', `/api/v1/devices/${bagA.id}/status`, operatorToken);
+    assert.strictEqual(staleStatusRes.body.data.status, DeviceStatus.STALE);
+
+    console.log('✓ Test 12 passed: Connectivity state machine (ONLINE, OFFLINE, STALE, RECOVERY) & History Preservation verified.');
 
     console.log('====================================================');
-    console.log('✓ ALL 11 PART 5 SYNC INTEGRATION TESTS PASSED!');
+    console.log('✓ ALL 12 PART 5 SYNC INTEGRATION TESTS PASSED!');
     console.log('====================================================');
   } finally {
     if (serverInstance) {

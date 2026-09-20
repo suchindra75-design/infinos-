@@ -13,6 +13,7 @@ import {
 } from './device.validation.js';
 import { thingspeakService } from '../../services/thingspeak.service.js';
 import { deviceSyncService } from '../../services/device-sync.service.js';
+import { calculateDeviceStatus } from '../../utils/device-status.js';
 import { NormalizedSensorReading } from '../../types/thingspeak.types.js';
 
 export class DeviceService {
@@ -34,13 +35,20 @@ export class DeviceService {
     updatedAt: Date;
     ownerId: string | null;
   }): SafeDevice {
+    let currentStatus = device.status;
+    if (currentStatus !== 'OFFLINE') {
+      const calculated = calculateDeviceStatus(device.lastSeenAt);
+      if (calculated === 'OFFLINE' || calculated === 'STALE') {
+        currentStatus = calculated;
+      }
+    }
     return {
       id: device.id,
       deviceCode: device.deviceCode,
       name: device.name,
       thingSpeakChannelId: device.thingSpeakChannelId,
       fieldMappings: (device.fieldMappings as any) || null,
-      status: device.status,
+      status: currentStatus,
       isArchived: device.isArchived ?? false,
       lastSeenAt: device.lastSeenAt,
       createdAt: device.createdAt,
@@ -262,17 +270,25 @@ export class DeviceService {
       throw new AppError('Device not found', 404, 'DEVICE_NOT_FOUND');
     }
 
+    let currentStatus = device.status;
+    if (currentStatus !== 'OFFLINE') {
+      const calculated = calculateDeviceStatus(device.lastSeenAt);
+      if (calculated === 'OFFLINE' || calculated === 'STALE') {
+        currentStatus = calculated;
+      }
+    }
+
     const hasSync = device.lastSeenAt !== null;
 
     return {
       id: device.id,
       deviceCode: device.deviceCode,
       name: device.name,
-      status: device.status,
+      status: currentStatus,
       lastSeenAt: device.lastSeenAt,
       hasSyncReadings: hasSync,
       message: hasSync
-        ? `Device status: ${device.status}`
+        ? `Device status: ${currentStatus}`
         : 'No synchronized reading available yet. Awaiting initial telemetry synchronization.',
     };
   }

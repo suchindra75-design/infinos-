@@ -33,22 +33,21 @@ export class DeviceSyncService {
       device = deviceOrId;
     }
 
-    // Decrypt Read API Key strictly in memory
-    let readApiKey: string | undefined = undefined;
-    if (device.thingSpeakReadKey) {
-      try {
-        readApiKey = decryptText(device.thingSpeakReadKey);
-      } catch (err: any) {
-        logger.error('Failed to decrypt device ThingSpeak Read API Key', {
-          deviceId: device.id,
-          deviceCode: device.deviceCode,
-          channelId: device.thingSpeakChannelId,
-        });
-        throw new AppError('Failed to decrypt stored device credentials', 500, 'DECRYPTION_FAILED');
-      }
-    }
-
     try {
+      // Decrypt Read API Key strictly in memory
+      let readApiKey: string | undefined = undefined;
+      if (device.thingSpeakReadKey) {
+        try {
+          readApiKey = decryptText(device.thingSpeakReadKey);
+        } catch (err: any) {
+          logger.error('Failed to decrypt device ThingSpeak Read API Key', {
+            deviceId: device.id,
+            deviceCode: device.deviceCode,
+            channelId: device.thingSpeakChannelId,
+          });
+          throw new AppError('Failed to decrypt stored device credentials', 500, 'DECRYPTION_FAILED');
+        }
+      }
       // Determine if initial backfill or incremental sync
       const existingReadingsCount = await prisma.sensorReading.count({
         where: { deviceId: device.id },
@@ -188,15 +187,16 @@ export class DeviceSyncService {
         message: `Synchronized ${newReadingsCount} new reading(s)`,
       };
     } catch (err: any) {
-      // Failure Isolation: Calculate status based on current lastSeenAt (may transition to STALE/OFFLINE)
-      const fallbackStatus = calculateDeviceStatus(device.lastSeenAt);
-      if (fallbackStatus !== device.status) {
+      // Failure Isolation & Connectivity State Machine: A failed sync request means ThingSpeak is unreachable
+      const newStatus = DeviceStatus.OFFLINE;
+      if (device.status !== newStatus) {
         await prisma.device
           .update({
             where: { id: device.id },
-            data: { status: fallbackStatus },
+            data: { status: newStatus },
           })
           .catch(() => {});
+        device.status = newStatus;
       }
 
       logger.warn('Device synchronization failed for channel', {
@@ -213,7 +213,7 @@ export class DeviceSyncService {
         success: false,
         newReadingsCount: 0,
         latestRecordedAt: device.lastSeenAt,
-        status: fallbackStatus,
+        status: newStatus,
         error: err?.message || 'Synchronization failed',
       };
     }
@@ -246,6 +246,14 @@ export class DeviceSyncService {
         }
       } catch (err: any) {
         failedSyncs++;
+        // Defense-in-depth: ensure device transitions to OFFLINE on any unhandled sync error
+        const failoverStatus = DeviceStatus.OFFLINE;
+        await prisma.device
+          .update({
+            where: { id: device.id },
+            data: { status: failoverStatus },
+          })
+          .catch(() => {});
         logger.error('Unexpected error during device sync cycle', {
           deviceId: device.id,
           deviceCode: device.deviceCode,
@@ -259,7 +267,7 @@ export class DeviceSyncService {
           success: false,
           newReadingsCount: 0,
           latestRecordedAt: device.lastSeenAt,
-          status: calculateDeviceStatus(device.lastSeenAt),
+          status: failoverStatus,
           error: err?.message || 'Unexpected error',
         });
       }
