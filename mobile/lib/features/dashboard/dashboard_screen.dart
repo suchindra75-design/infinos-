@@ -64,7 +64,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
         actions: [
           IconButton(
             icon: const Icon(Icons.refresh_rounded, color: AppColors.primaryText),
-            tooltip: 'Refresh Devices',
+            tooltip: 'Refresh Fleet',
             onPressed: () => deviceProvider.fetchDevices(),
           ),
           IconButton(
@@ -84,22 +84,27 @@ class _DashboardScreenState extends State<DashboardScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
+              // User Greeting & Role Badge
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        'Welcome, ${authProvider.user?.name ?? "Operator"}',
-                        style: AppTypography.body(fontSize: 13, color: AppColors.mutedText),
-                      ),
-                      const SizedBox(height: 2),
-                      Text(
-                        'Fleet Overview',
-                        style: AppTypography.displayHeader(fontSize: 22),
-                      ),
-                    ],
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Welcome, ${authProvider.user?.name ?? "Operator"}',
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: AppTypography.body(fontSize: 13, color: AppColors.mutedText),
+                        ),
+                        const SizedBox(height: 2),
+                        Text(
+                          'Fleet Overview',
+                          style: AppTypography.displayHeader(fontSize: 22),
+                        ),
+                      ],
+                    ),
                   ),
                   Container(
                     padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
@@ -123,6 +128,44 @@ class _DashboardScreenState extends State<DashboardScreen> {
                 ],
               ),
               const SizedBox(height: 16),
+
+              // API Error Banner
+              if (deviceProvider.errorMessage != null) ...[
+                Container(
+                  padding: const EdgeInsets.all(14),
+                  decoration: BoxDecoration(
+                    color: Colors.red.shade50,
+                    borderRadius: BorderRadius.circular(16),
+                    border: Border.all(color: Colors.red.shade200),
+                  ),
+                  child: Row(
+                    children: [
+                      Icon(Icons.wifi_off_rounded, color: Colors.red.shade700, size: 20),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: Text(
+                          deviceProvider.errorMessage!,
+                          style: AppTypography.body(color: Colors.red.shade900, fontSize: 13),
+                        ),
+                      ),
+                      TextButton(
+                        onPressed: () => deviceProvider.fetchDevices(),
+                        child: Text(
+                          'Retry',
+                          style: AppTypography.body(
+                            color: Colors.red.shade900,
+                            fontWeight: FontWeight.w700,
+                            fontSize: 13,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 16),
+              ],
+
+              // Stat Overview Cards (Total, Online, Offline)
               Row(
                 children: [
                   Expanded(
@@ -133,7 +176,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                       color: AppColors.primaryText,
                     ),
                   ),
-                  const SizedBox(width: 10),
+                  const SizedBox(width: 8),
                   Expanded(
                     child: _buildStatCard(
                       label: 'Online',
@@ -142,7 +185,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                       color: AppColors.statusOnline,
                     ),
                   ),
-                  const SizedBox(width: 10),
+                  const SizedBox(width: 8),
                   Expanded(
                     child: _buildStatCard(
                       label: 'Offline',
@@ -154,11 +197,15 @@ class _DashboardScreenState extends State<DashboardScreen> {
                 ],
               ),
               const SizedBox(height: 20),
+
+              // Registered Smart Bags Section Header
               Text(
                 'Registered Smart Bags',
                 style: AppTypography.title(fontSize: 16, fontWeight: FontWeight.w700),
               ),
               const SizedBox(height: 10),
+
+              // Smart Bags Horizontal List Selector
               if (deviceProvider.isLoading && deviceProvider.devices.isEmpty)
                 const Center(
                   child: Padding(
@@ -168,22 +215,33 @@ class _DashboardScreenState extends State<DashboardScreen> {
                 )
               else if (deviceProvider.devices.isEmpty)
                 Container(
-                  padding: const EdgeInsets.all(20),
+                  padding: const EdgeInsets.all(24),
+                  width: double.infinity,
                   decoration: BoxDecoration(
                     color: AppColors.surface,
                     borderRadius: BorderRadius.circular(16),
                     border: Border.all(color: AppColors.border),
                   ),
-                  child: Center(
-                    child: Text(
-                      'No Smart Bags registered yet.',
-                      style: AppTypography.body(color: AppColors.mutedText),
-                    ),
+                  child: Column(
+                    children: [
+                      const Icon(Icons.inbox_rounded, size: 36, color: AppColors.mutedText),
+                      const SizedBox(height: 8),
+                      Text(
+                        'No Smart Bags Registered',
+                        style: AppTypography.title(fontSize: 14, fontWeight: FontWeight.w700),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        'Register a new bag using Claim Bag in the Devices tab.',
+                        textAlign: TextAlign.center,
+                        style: AppTypography.body(fontSize: 12, color: AppColors.mutedText),
+                      ),
+                    ],
                   ),
                 )
               else
                 SizedBox(
-                  height: 100,
+                  height: 96,
                   child: ListView.separated(
                     scrollDirection: Axis.horizontal,
                     itemCount: deviceProvider.devices.length,
@@ -201,6 +259,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
                   ),
                 ),
               const SizedBox(height: 24),
+
+              // Selected Device Live Telemetry Monitor Card
               if (selectedDevice != null) ...[
                 Container(
                   padding: const EdgeInsets.all(16),
@@ -219,8 +279,10 @@ class _DashboardScreenState extends State<DashboardScreen> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
+                      // Header: Bag Name, Device Code, Channel ID, & Status Badge
                       Row(
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Expanded(
                             child: Column(
@@ -228,9 +290,13 @@ class _DashboardScreenState extends State<DashboardScreen> {
                               children: [
                                 Row(
                                   children: [
-                                    Text(
-                                      selectedDevice.name,
-                                      style: AppTypography.displayHeader(fontSize: 18),
+                                    Expanded(
+                                      child: Text(
+                                        selectedDevice.name,
+                                        maxLines: 1,
+                                        overflow: TextOverflow.ellipsis,
+                                        style: AppTypography.displayHeader(fontSize: 18),
+                                      ),
                                     ),
                                     const SizedBox(width: 8),
                                     Container(
@@ -254,10 +320,42 @@ class _DashboardScreenState extends State<DashboardScreen> {
                               ],
                             ),
                           ),
+                          const SizedBox(width: 8),
                           _buildStatusBadge(selectedDevice.status),
                         ],
                       ),
+
+                      // Offline Telemetry Warning Banner (Truthful State)
+                      if (selectedDevice.status == DeviceConnectivityStatus.offline) ...[
+                        const SizedBox(height: 12),
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                          decoration: BoxDecoration(
+                            color: AppColors.statusOffline.withValues(alpha: 0.08),
+                            borderRadius: BorderRadius.circular(8),
+                            border: Border.all(color: AppColors.statusOffline.withValues(alpha: 0.2)),
+                          ),
+                          child: Row(
+                            children: [
+                              const Icon(Icons.history_rounded, size: 14, color: AppColors.statusOffline),
+                              const SizedBox(width: 6),
+                              Expanded(
+                                child: Text(
+                                  'Device Offline — Displaying Stored History from PostgreSQL',
+                                  style: AppTypography.body(
+                                    fontSize: 11,
+                                    color: AppColors.statusOffline,
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
                       const SizedBox(height: 16),
+
+                      // Animated Waveform Canvas Widget
                       Container(
                         height: 90,
                         width: double.infinity,
@@ -269,35 +367,56 @@ class _DashboardScreenState extends State<DashboardScreen> {
                         ),
                         child: AnimatedWaveformWidget(
                           activeField: activeField,
-                          waveformState: WaveformState.ambient,
+                          waveformState: selectedDevice.status == DeviceConnectivityStatus.online
+                              ? WaveformState.ambient
+                              : WaveformState.ambient,
                         ),
                       ),
                       const SizedBox(height: 16),
-                      Text(
-                        'Dynamic Telemetry Fields',
-                        style: AppTypography.body(fontSize: 12, fontWeight: FontWeight.w700, color: AppColors.mutedText),
+
+                      // Dynamic Telemetry Metrics Title
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Text(
+                            'Dynamic Telemetry Fields',
+                            style: AppTypography.body(fontSize: 12, fontWeight: FontWeight.w700, color: AppColors.mutedText),
+                          ),
+                          if (deviceProvider.latestReading != null)
+                            Text(
+                              'Recorded: ${_formatRecordedTime(deviceProvider.latestReading!.recordedAt)}',
+                              style: AppTypography.mono(fontSize: 10, color: AppColors.mutedText),
+                            ),
+                        ],
                       ),
                       const SizedBox(height: 8),
-                      GridView.builder(
-                        shrinkWrap: true,
-                        physics: const NeverScrollableScrollPhysics(),
-                        gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                          crossAxisCount: 2,
-                          childAspectRatio: 2.2,
-                          crossAxisSpacing: 10,
-                          mainAxisSpacing: 10,
-                        ),
-                        itemCount: resolvedFields.length,
-                        itemBuilder: (context, index) {
-                          final field = resolvedFields[index];
-                          final isSelected = index == _selectedFieldIndex;
-                          return _buildTelemetryMetricTile(
-                            field: field,
-                            isSelected: isSelected,
-                            onTap: () {
-                              setState(() {
-                                _selectedFieldIndex = index;
-                              });
+
+                      // Telemetry Metric Tiles Grid
+                      LayoutBuilder(
+                        builder: (context, constraints) {
+                          final isNarrow = constraints.maxWidth < 360;
+                          return GridView.builder(
+                            shrinkWrap: true,
+                            physics: const NeverScrollableScrollPhysics(),
+                            gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                              crossAxisCount: 2,
+                              childAspectRatio: isNarrow ? 2.0 : 2.2,
+                              crossAxisSpacing: 10,
+                              mainAxisSpacing: 10,
+                            ),
+                            itemCount: resolvedFields.length,
+                            itemBuilder: (context, index) {
+                              final field = resolvedFields[index];
+                              final isSelected = index == _selectedFieldIndex;
+                              return _buildTelemetryMetricTile(
+                                field: field,
+                                isSelected: isSelected,
+                                onTap: () {
+                                  setState(() {
+                                    _selectedFieldIndex = index;
+                                  });
+                                },
+                              );
                             },
                           );
                         },
@@ -307,6 +426,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
                 ),
                 const SizedBox(height: 24),
               ],
+
+              // System Health & Active Alerts Preview Section
               Container(
                 padding: const EdgeInsets.all(16),
                 decoration: BoxDecoration(
@@ -316,19 +437,40 @@ class _DashboardScreenState extends State<DashboardScreen> {
                 ),
                 child: Row(
                   children: [
-                    const Icon(Icons.info_outline_rounded, color: AppColors.mutedText, size: 20),
+                    Container(
+                      padding: const EdgeInsets.all(8),
+                      decoration: BoxDecoration(
+                        color: deviceProvider.activeAlertsCount > 0
+                            ? AppColors.primaryOrange.withValues(alpha: 0.1)
+                            : AppColors.statusOnline.withValues(alpha: 0.1),
+                        shape: BoxShape.circle,
+                      ),
+                      child: Icon(
+                        deviceProvider.activeAlertsCount > 0
+                            ? Icons.warning_amber_rounded
+                            : Icons.check_circle_outline_rounded,
+                        color: deviceProvider.activeAlertsCount > 0
+                            ? AppColors.primaryOrange
+                            : AppColors.statusOnline,
+                        size: 20,
+                      ),
+                    ),
                     const SizedBox(width: 12),
                     Expanded(
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Text(
-                            'System Health Normal',
+                            deviceProvider.activeAlertsCount > 0
+                                ? '${deviceProvider.activeAlertsCount} Active Alert(s) Recorded'
+                                : 'System Health Normal',
                             style: AppTypography.title(fontSize: 13, fontWeight: FontWeight.w600),
                           ),
                           const SizedBox(height: 2),
                           Text(
-                            'All PostgreSQL rules & alert evaluation pipelines active.',
+                            deviceProvider.activeAlertsCount > 0
+                                ? 'Alert threshold rules triggered. Check Alerts tab for details.'
+                                : 'All PostgreSQL rules & alert evaluation pipelines active.',
                             style: AppTypography.body(fontSize: 11, color: AppColors.mutedText),
                           ),
                         ],
@@ -352,7 +494,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
     required Color color,
   }) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
       decoration: BoxDecoration(
         color: AppColors.surface,
         borderRadius: BorderRadius.circular(14),
@@ -365,9 +507,13 @@ class _DashboardScreenState extends State<DashboardScreen> {
             children: [
               Icon(icon, size: 14, color: color),
               const SizedBox(width: 4),
-              Text(
-                label,
-                style: AppTypography.body(fontSize: 11, color: AppColors.mutedText),
+              Expanded(
+                child: Text(
+                  label,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: AppTypography.body(fontSize: 11, color: AppColors.mutedText),
+                ),
               ),
             ],
           ),
@@ -386,7 +532,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
       onTap: onTap,
       borderRadius: BorderRadius.circular(14),
       child: Container(
-        width: 150,
+        width: 145,
         padding: const EdgeInsets.all(12),
         decoration: BoxDecoration(
           color: isSelected ? AppColors.surface : AppColors.cardBg,
@@ -570,5 +716,12 @@ class _DashboardScreenState extends State<DashboardScreen> {
         ),
       ),
     );
+  }
+
+  String _formatRecordedTime(DateTime time) {
+    final local = time.toLocal();
+    final hour = local.hour.toString().padLeft(2, '0');
+    final minute = local.minute.toString().padLeft(2, '0');
+    return '$hour:$minute';
   }
 }

@@ -31,8 +31,13 @@ class InfinosApp extends StatelessWidget {
             storageService: storageService,
           )..tryRestoreSession(),
         ),
-        ChangeNotifierProvider<DeviceProvider>(
+        ChangeNotifierProxyProvider<AuthProvider, DeviceProvider>(
           create: (_) => DeviceProvider(apiClient: apiClient),
+          update: (_, auth, deviceProvider) {
+            final dp = deviceProvider ?? DeviceProvider(apiClient: apiClient);
+            auth.onLogout = dp.reset;
+            return dp;
+          },
         ),
       ],
       child: MaterialApp(

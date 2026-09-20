@@ -90,6 +90,8 @@ class ApiClient {
     );
   }
 
+  static const Duration _timeoutDuration = Duration(seconds: 15);
+
   Future<dynamic> get(
     String endpoint, {
     Map<String, String>? queryParameters,
@@ -99,7 +101,7 @@ class ApiClient {
     final headers = await _getHeaders(requiresAuth: requiresAuth);
 
     try {
-      final response = await _httpClient.get(uri, headers: headers);
+      final response = await _httpClient.get(uri, headers: headers).timeout(_timeoutDuration);
       return _processResponse(response);
     } catch (e) {
       if (e is ApiException) rethrow;
@@ -117,11 +119,13 @@ class ApiClient {
     final headers = await _getHeaders(requiresAuth: requiresAuth);
 
     try {
-      final response = await _httpClient.post(
-        uri,
-        headers: headers,
-        body: body != null ? jsonEncode(body) : null,
-      );
+      final response = await _httpClient
+          .post(
+            uri,
+            headers: headers,
+            body: body != null ? jsonEncode(body) : null,
+          )
+          .timeout(_timeoutDuration);
       return _processResponse(response);
     } catch (e) {
       if (e is ApiException) rethrow;
@@ -138,11 +142,36 @@ class ApiClient {
     final headers = await _getHeaders(requiresAuth: requiresAuth);
 
     try {
-      final response = await _httpClient.put(
-        uri,
-        headers: headers,
-        body: body != null ? jsonEncode(body) : null,
-      );
+      final response = await _httpClient
+          .put(
+            uri,
+            headers: headers,
+            body: body != null ? jsonEncode(body) : null,
+          )
+          .timeout(_timeoutDuration);
+      return _processResponse(response);
+    } catch (e) {
+      if (e is ApiException) rethrow;
+      throw ApiException(message: 'Network request failed: $e');
+    }
+  }
+
+  Future<dynamic> patch(
+    String endpoint, {
+    dynamic body,
+    bool requiresAuth = true,
+  }) async {
+    final uri = _buildUri(endpoint);
+    final headers = await _getHeaders(requiresAuth: requiresAuth);
+
+    try {
+      final response = await _httpClient
+          .patch(
+            uri,
+            headers: headers,
+            body: body != null ? jsonEncode(body) : null,
+          )
+          .timeout(_timeoutDuration);
       return _processResponse(response);
     } catch (e) {
       if (e is ApiException) rethrow;
@@ -158,7 +187,7 @@ class ApiClient {
     final headers = await _getHeaders(requiresAuth: requiresAuth);
 
     try {
-      final response = await _httpClient.delete(uri, headers: headers);
+      final response = await _httpClient.delete(uri, headers: headers).timeout(_timeoutDuration);
       return _processResponse(response);
     } catch (e) {
       if (e is ApiException) rethrow;

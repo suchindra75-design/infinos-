@@ -131,7 +131,7 @@ class ResolvedTelemetryField {
       return resolved;
     }
 
-    // Default fallback when no fieldMappings provided:
+    // Unmapped dynamic values from fieldValues map:
     if (latestReading != null) {
       if (latestReading.fieldValues.isNotEmpty) {
         latestReading.fieldValues.forEach((key, rawVal) {
@@ -151,7 +151,7 @@ class ResolvedTelemetryField {
         if (resolved.isNotEmpty) return resolved;
       }
 
-      // Hard fallback if only standard cold/hot/humidity exist
+      // Explicit legacy fields if fieldValues map is not present
       if (latestReading.coldTemperature != null) {
         resolved.add(ResolvedTelemetryField(
           fieldKey: 'field1',
@@ -187,9 +187,9 @@ class ResolvedTelemetryField {
     // If completely empty, return placeholders
     if (resolved.isEmpty) {
       resolved.addAll([
-        ResolvedTelemetryField(fieldKey: 'field1', label: 'Field 1', unit: '°C', metric: 'temperature', zone: 'cold'),
-        ResolvedTelemetryField(fieldKey: 'field2', label: 'Field 2', unit: '°C', metric: 'temperature', zone: 'hot'),
-        ResolvedTelemetryField(fieldKey: 'field3', label: 'Field 3', unit: '%', metric: 'humidity', zone: 'none'),
+        ResolvedTelemetryField(fieldKey: 'field1', label: 'Field 1', unit: '', metric: 'other', zone: 'none'),
+        ResolvedTelemetryField(fieldKey: 'field2', label: 'Field 2', unit: '', metric: 'other', zone: 'none'),
+        ResolvedTelemetryField(fieldKey: 'field3', label: 'Field 3', unit: '', metric: 'other', zone: 'none'),
       ]);
     }
 
@@ -197,29 +197,20 @@ class ResolvedTelemetryField {
   }
 
   static String _getFallbackLabel(String key) {
-    if (key == 'field1') return 'Cold Compartment';
-    if (key == 'field2') return 'Hot Compartment';
-    if (key == 'field3') return 'Relative Humidity';
     final match = RegExp(r'\d+').firstMatch(key);
-    final num = match != null ? match.group(0) : key;
-    return 'Field $num';
+    final numStr = match != null ? match.group(0) : key;
+    return 'Field $numStr';
   }
 
   static String _getFallbackUnit(String key) {
-    if (key == 'field1' || key == 'field2') return '°C';
-    if (key == 'field3') return '%';
     return '';
   }
 
   static String _getFallbackMetric(String key) {
-    if (key == 'field1' || key == 'field2') return 'temperature';
-    if (key == 'field3') return 'humidity';
     return 'other';
   }
 
   static String _getFallbackZone(String key) {
-    if (key == 'field1') return 'cold';
-    if (key == 'field2') return 'hot';
     return 'none';
   }
 }

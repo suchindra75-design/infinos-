@@ -108,11 +108,14 @@ class AuthProvider extends ChangeNotifier {
     }
   }
 
+  VoidCallback? onLogout;
+
   Future<void> logout() async {
     await storageService.deleteToken();
     _user = null;
     _status = AuthStatus.unauthenticated;
     _errorMessage = null;
+    onLogout?.call();
     notifyListeners();
   }
 

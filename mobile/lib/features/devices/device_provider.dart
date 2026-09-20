@@ -1,6 +1,7 @@
 import 'package:flutter/foundation.dart';
 import '../../core/config/app_config.dart';
 import '../../core/networking/api_client.dart';
+import '../../models/alert.dart';
 import '../../models/device.dart';
 import '../../models/telemetry.dart';
 
@@ -13,6 +14,20 @@ class DeviceProvider extends ChangeNotifier {
   List<ResolvedTelemetryField> _resolvedFields = [];
   bool _isLoading = false;
   String? _errorMessage;
+  bool _isTelemetryLoading = false;
+  String? _telemetryErrorMessage;
+  Map<String, dynamic>? _analyticsSummary;
+  List<SensorReading> _analyticsTimeseries = [];
+  bool _isAnalyticsLoading = false;
+  String? _analyticsErrorMessage;
+  int _activeAlertsCount = 0;
+
+  // Alerts state
+  List<SafeAlert> _alerts = [];
+  bool _isAlertsLoading = false;
+  String? _alertsErrorMessage;
+  String _alertsStatusFilter = 'all'; // 'all', 'active', 'resolved'
+  bool _isResolvingAlert = false;
 
   DeviceProvider({required this.apiClient});
 
@@ -22,12 +37,56 @@ class DeviceProvider extends ChangeNotifier {
   List<ResolvedTelemetryField> get resolvedFields => _resolvedFields;
   bool get isLoading => _isLoading;
   String? get errorMessage => _errorMessage;
+  bool get isTelemetryLoading => _isTelemetryLoading;
+  String? get telemetryErrorMessage => _telemetryErrorMessage;
+  Map<String, dynamic>? get analyticsSummary => _analyticsSummary;
+  List<SensorReading> get analyticsTimeseries => _analyticsTimeseries;
+  bool get isAnalyticsLoading => _isAnalyticsLoading;
+  String? get analyticsErrorMessage => _analyticsErrorMessage;
+  int get activeAlertsCount => _activeAlertsCount;
+
+  // Alerts getters (returns filtered view based on _alertsStatusFilter)
+  List<SafeAlert> get alerts {
+    if (_alertsStatusFilter == 'active') {
+      return _alerts.where((a) => !a.isResolved).toList();
+    } else if (_alertsStatusFilter == 'resolved') {
+      return _alerts.where((a) => a.isResolved).toList();
+    }
+    return _alerts;
+  }
+  bool get isAlertsLoading => _isAlertsLoading;
+  String? get alertsErrorMessage => _alertsErrorMessage;
+  String get alertsStatusFilter => _alertsStatusFilter;
+  bool get isResolvingAlert => _isResolvingAlert;
 
   int get totalDevicesCount => _devices.length;
   int get onlineDevicesCount =>
       _devices.where((d) => d.status == DeviceConnectivityStatus.online).length;
   int get offlineDevicesCount =>
       _devices.where((d) => d.status == DeviceConnectivityStatus.offline).length;
+
+  /// Securely clear all cached provider data on logout or 401 session expiry
+  void reset() {
+    _devices = [];
+    _selectedDevice = null;
+    _latestReading = null;
+    _resolvedFields = [];
+    _isLoading = false;
+    _errorMessage = null;
+    _isTelemetryLoading = false;
+    _telemetryErrorMessage = null;
+    _analyticsSummary = null;
+    _analyticsTimeseries = [];
+    _isAnalyticsLoading = false;
+    _analyticsErrorMessage = null;
+    _activeAlertsCount = 0;
+    _alerts = [];
+    _isAlertsLoading = false;
+    _alertsErrorMessage = null;
+    _alertsStatusFilter = 'all';
+    _isResolvingAlert = false;
+    notifyListeners();
+  }
 
   Future<void> fetchDevices() async {
     _isLoading = true;
@@ -54,9 +113,19 @@ class DeviceProvider extends ChangeNotifier {
           _selectedDevice = updated;
           _updateResolvedFields();
         }
+      } else {
+        _selectedDevice = null;
+        _latestReading = null;
+        _telemetryErrorMessage = null;
+        _analyticsSummary = null;
+        _analyticsTimeseries = [];
+        _analyticsErrorMessage = null;
+        _resolvedFields = [];
       }
+      
+      await fetchAlertsSummary();
     } catch (e) {
-      _errorMessage = 'Failed to load devices: $e';
+      _errorMessage = 'Failed to connect to backend: $e';
     } finally {
       _isLoading = false;
       notifyListeners();
@@ -65,17 +134,31 @@ class DeviceProvider extends ChangeNotifier {
 
   void selectDevice(SafeDevice device) {
     _selectedDevice = device;
+    // Clear previous device's reading and analytics to prevent stale data flash
+    _latestReading = null;
+    _telemetryErrorMessage = null;
+    _analyticsSummary = null;
+    _analyticsTimeseries = [];
+    _analyticsErrorMessage = null;
     _updateResolvedFields();
     notifyListeners();
     fetchDeviceTelemetry(device.id);
+    fetchDeviceAnalytics(device.id);
   }
 
   Future<void> fetchDeviceTelemetry(String deviceId) async {
+    _isTelemetryLoading = true;
+    _telemetryErrorMessage = null;
+    notifyListeners();
+
     try {
       final response = await apiClient.get(
         AppConfig.deviceReadingsEndpoint(deviceId),
         queryParameters: {'limit': '1'},
       );
+
+      // Race condition guard: discard stale response if selected device changed mid-flight
+      if (_selectedDevice?.id != deviceId) return;
 
       if (response != null && response is Map<String, dynamic>) {
         List? readingsList;
@@ -90,10 +173,63 @@ class DeviceProvider extends ChangeNotifier {
         }
       }
     } catch (e) {
-      // Keep previous reading if network call fails
+      if (_selectedDevice?.id != deviceId) return;
+      _telemetryErrorMessage = 'Failed to load telemetry readings: $e';
     } finally {
-      _updateResolvedFields();
-      notifyListeners();
+      if (_selectedDevice?.id == deviceId) {
+        _isTelemetryLoading = false;
+        _updateResolvedFields();
+        notifyListeners();
+      }
+    }
+  }
+
+  Future<void> fetchDeviceAnalytics(String deviceId) async {
+    _isAnalyticsLoading = true;
+    _analyticsErrorMessage = null;
+    notifyListeners();
+
+    try {
+      final summaryRes = await apiClient.get(AppConfig.analyticsSummaryEndpoint(deviceId));
+      if (_selectedDevice?.id != deviceId) return;
+
+      if (summaryRes != null && summaryRes is Map<String, dynamic>) {
+        if (summaryRes.containsKey('data') && summaryRes['data'] is Map<String, dynamic>) {
+          _analyticsSummary = summaryRes['data'] as Map<String, dynamic>;
+        } else {
+          _analyticsSummary = summaryRes;
+        }
+      }
+
+      final tsRes = await apiClient.get(
+        AppConfig.analyticsTimeseriesEndpoint(deviceId),
+        queryParameters: {'limit': '100'},
+      );
+      if (_selectedDevice?.id != deviceId) return;
+
+      if (tsRes != null && tsRes is Map<String, dynamic>) {
+        Map<String, dynamic>? data;
+        if (tsRes.containsKey('data') && tsRes['data'] is Map<String, dynamic>) {
+          data = tsRes['data'] as Map<String, dynamic>;
+        } else {
+          data = tsRes;
+        }
+
+        if (data.containsKey('readings') && data['readings'] is List) {
+          final list = data['readings'] as List;
+          _analyticsTimeseries = list
+              .map((item) => SensorReading.fromJson(item as Map<String, dynamic>))
+              .toList();
+        }
+      }
+    } catch (e) {
+      if (_selectedDevice?.id != deviceId) return;
+      _analyticsErrorMessage = 'Failed to load analytics: $e';
+    } finally {
+      if (_selectedDevice?.id == deviceId) {
+        _isAnalyticsLoading = false;
+        notifyListeners();
+      }
     }
   }
 
@@ -115,6 +251,68 @@ class DeviceProvider extends ChangeNotifier {
         notifyListeners();
       }
     } catch (_) {}
+  }
+
+  Future<void> fetchAlertsSummary() async {
+    _isAlertsLoading = true;
+    _alertsErrorMessage = null;
+    notifyListeners();
+
+    try {
+      final response = await apiClient.get(
+        AppConfig.alertsEndpoint,
+        queryParameters: {'limit': '100'},
+      );
+
+      // ApiClient._processResponse unwraps 'data', so response is the alerts array directly
+      if (response is List) {
+        _alerts = response
+            .map((item) => SafeAlert.fromJson(item as Map<String, dynamic>))
+            .toList();
+      } else {
+        _alerts = [];
+      }
+
+      // Fleet-wide active alerts count is always derived accurately
+      _activeAlertsCount = _alerts.where((a) => !a.isResolved).length;
+    } catch (e) {
+      _alertsErrorMessage = 'Failed to load alerts: $e';
+      _alerts = [];
+    } finally {
+      _isAlertsLoading = false;
+      notifyListeners();
+    }
+  }
+
+  void setAlertsStatusFilter(String filter) {
+    if (_alertsStatusFilter == filter) return;
+    _alertsStatusFilter = filter;
+    notifyListeners();
+  }
+
+  Future<bool> resolveAlert(String alertId) async {
+    _isResolvingAlert = true;
+    notifyListeners();
+
+    try {
+      await apiClient.patch('${AppConfig.alertsEndpoint}/$alertId/resolve');
+      // Refresh the alerts list after successful resolve
+      await fetchAlertsSummary();
+      return true;
+    } catch (e) {
+      _alertsErrorMessage = 'Failed to resolve alert: $e';
+      notifyListeners();
+      return false;
+    } finally {
+      _isResolvingAlert = false;
+      notifyListeners();
+    }
+  }
+
+  Future<void> retryAlerts() async {
+    _alertsErrorMessage = null;
+    notifyListeners();
+    await fetchAlertsSummary();
   }
 
   void _updateResolvedFields() {
