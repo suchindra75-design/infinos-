@@ -7,6 +7,7 @@ import '../../models/device.dart';
 import '../../models/telemetry.dart';
 import '../devices/device_provider.dart';
 import '../telemetry/waveform_widget.dart';
+import '../settings/settings_screen.dart';
 
 class DashboardScreen extends StatefulWidget {
   const DashboardScreen({super.key});
@@ -68,9 +69,15 @@ class _DashboardScreenState extends State<DashboardScreen> {
             onPressed: () => deviceProvider.fetchDevices(),
           ),
           IconButton(
-            icon: const Icon(Icons.logout_rounded, color: AppColors.mutedText),
-            tooltip: 'Sign Out',
-            onPressed: () => authProvider.logout(),
+            icon: const Icon(Icons.settings_outlined, color: AppColors.mutedText),
+            tooltip: 'Settings',
+            onPressed: () {
+              Navigator.of(context).push(
+                MaterialPageRoute(
+                  builder: (_) => const SettingsScreen(),
+                ),
+              );
+            },
           ),
           const SizedBox(width: 8),
         ],

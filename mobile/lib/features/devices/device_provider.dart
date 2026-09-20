@@ -315,6 +315,176 @@ class DeviceProvider extends ChangeNotifier {
     await fetchAlertsSummary();
   }
 
+  // Device Management Actions
+
+  /// Add / Claim a new device via POST /api/v1/devices
+  Future<SafeDevice?> addDevice({
+    required String deviceCode,
+    required String name,
+    required String thingSpeakChannelId,
+    String? thingSpeakReadApiKey,
+  }) async {
+    _isLoading = true;
+    _errorMessage = null;
+    notifyListeners();
+
+    try {
+      final body = <String, dynamic>{
+        'deviceCode': deviceCode.trim(),
+        'name': name.trim(),
+        'thingSpeakChannelId': thingSpeakChannelId.trim(),
+      };
+      if (thingSpeakReadApiKey != null && thingSpeakReadApiKey.trim().isNotEmpty) {
+        body['thingSpeakReadApiKey'] = thingSpeakReadApiKey.trim();
+      }
+
+      final response = await apiClient.post(AppConfig.devicesEndpoint, body: body);
+
+      SafeDevice? createdDevice;
+      if (response != null && response is Map<String, dynamic>) {
+        if (response.containsKey('id')) {
+          createdDevice = SafeDevice.fromJson(response);
+        } else if (response.containsKey('data') && response['data'] is Map<String, dynamic>) {
+          createdDevice = SafeDevice.fromJson(response['data'] as Map<String, dynamic>);
+        }
+      }
+
+      await fetchDevices();
+
+      if (createdDevice != null) {
+        final found = _devices.firstWhere(
+          (d) => d.id == createdDevice!.id,
+          orElse: () => createdDevice!,
+        );
+        selectDevice(found);
+      }
+      return createdDevice;
+    } catch (e) {
+      _errorMessage = 'Failed to add device: $e';
+      notifyListeners();
+      rethrow;
+    } finally {
+      _isLoading = false;
+      notifyListeners();
+    }
+  }
+
+  /// Edit / Update existing device details via PATCH /api/v1/devices/:id
+  Future<SafeDevice?> updateDevice(String deviceId, Map<String, dynamic> updateData) async {
+    _isLoading = true;
+    _errorMessage = null;
+    notifyListeners();
+
+    try {
+      final response = await apiClient.patch('${AppConfig.devicesEndpoint}/$deviceId', body: updateData);
+
+      SafeDevice? updatedDevice;
+      if (response != null && response is Map<String, dynamic>) {
+        if (response.containsKey('id')) {
+          updatedDevice = SafeDevice.fromJson(response);
+        } else if (response.containsKey('data') && response['data'] is Map<String, dynamic>) {
+          updatedDevice = SafeDevice.fromJson(response['data'] as Map<String, dynamic>);
+        }
+      }
+
+      await fetchDevices();
+
+      if (updatedDevice != null && _selectedDevice?.id == deviceId) {
+        final found = _devices.firstWhere(
+          (d) => d.id == deviceId,
+          orElse: () => updatedDevice!,
+        );
+        _selectedDevice = found;
+        _updateResolvedFields();
+      }
+      return updatedDevice;
+    } catch (e) {
+      _errorMessage = 'Failed to update device: $e';
+      notifyListeners();
+      rethrow;
+    } finally {
+      _isLoading = false;
+      notifyListeners();
+    }
+  }
+
+  /// Remove / Delete device via DELETE /api/v1/devices/:id
+  Future<bool> deleteDevice(String deviceId) async {
+    _isLoading = true;
+    _errorMessage = null;
+    notifyListeners();
+
+    try {
+      await apiClient.delete('${AppConfig.devicesEndpoint}/$deviceId');
+
+      final wasSelected = _selectedDevice?.id == deviceId;
+      _devices.removeWhere((d) => d.id == deviceId);
+
+      if (wasSelected) {
+        if (_devices.isNotEmpty) {
+          selectDevice(_devices.first);
+        } else {
+          _selectedDevice = null;
+          _latestReading = null;
+          _resolvedFields = [];
+          _telemetryErrorMessage = null;
+          _analyticsSummary = null;
+          _analyticsTimeseries = [];
+          _analyticsErrorMessage = null;
+        }
+      }
+
+      await fetchDevices();
+      return true;
+    } catch (e) {
+      _errorMessage = 'Failed to delete device: $e';
+      notifyListeners();
+      rethrow;
+    } finally {
+      _isLoading = false;
+      notifyListeners();
+    }
+  }
+
+  /// Test ThingSpeak channel connection via POST /api/v1/devices/test-connection
+  Future<Map<String, dynamic>> testConnection({
+    required String thingSpeakChannelId,
+    String? thingSpeakReadApiKey,
+  }) async {
+    try {
+      final body = <String, dynamic>{
+        'thingSpeakChannelId': thingSpeakChannelId.trim(),
+      };
+      if (thingSpeakReadApiKey != null && thingSpeakReadApiKey.trim().isNotEmpty) {
+        body['thingSpeakReadApiKey'] = thingSpeakReadApiKey.trim();
+      }
+
+      final response = await apiClient.post(
+        '${AppConfig.devicesEndpoint}/test-connection',
+        body: body,
+      );
+
+      if (response != null && response is Map<String, dynamic>) {
+        return response;
+      }
+      return {'success': true, 'message': 'Connection test successful'};
+    } catch (e) {
+      rethrow;
+    }
+  }
+
+  /// Trigger manual device sync via POST /api/v1/devices/:id/sync
+  Future<bool> syncDevice(String deviceId) async {
+    try {
+      await apiClient.post('${AppConfig.devicesEndpoint}/$deviceId/sync');
+      await fetchDeviceTelemetry(deviceId);
+      await refreshDeviceStatus(deviceId);
+      return true;
+    } catch (e) {
+      rethrow;
+    }
+  }
+
   void _updateResolvedFields() {
     _resolvedFields = ResolvedTelemetryField.resolveFields(
       fieldMappings: _selectedDevice?.fieldMappings,

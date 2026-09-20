@@ -25,6 +25,8 @@ class User {
     );
   }
 
+  bool get canManageDevices => role.toUpperCase() == 'ADMIN' || role.toUpperCase() == 'OPERATOR';
+
   Map<String, dynamic> toJson() {
     return {
       'id': id,
