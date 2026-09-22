@@ -5,6 +5,8 @@ import '../../core/theme/app_typography.dart';
 import '../../models/device.dart';
 import '../devices/device_provider.dart';
 import 'analytics_chart_widget.dart';
+import 'export_modal.dart';
+
 
 class AnalyticsScreen extends StatefulWidget {
   const AnalyticsScreen({super.key});
@@ -242,6 +244,18 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
         ),
         actions: [
           IconButton(
+            key: const Key('export_appbar_action'),
+            icon: const Icon(Icons.download_rounded),
+            tooltip: 'Export Data',
+            onPressed: () => showDialog(
+              context: context,
+              builder: (context) => ExportModal(
+                device: selectedDevice,
+                apiClient: deviceProvider.apiClient,
+              ),
+            ),
+          ),
+          IconButton(
             icon: const Icon(Icons.refresh_rounded),
             tooltip: 'Refresh Analytics',
             onPressed: () =>
@@ -360,6 +374,28 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
                         ),
                       ),
                     ],
+                  ),
+                  const SizedBox(height: 12),
+                  ElevatedButton.icon(
+                    key: const Key('export_report_button'),
+                    onPressed: () => showDialog(
+                      context: context,
+                      builder: (context) => ExportModal(
+                        device: selectedDevice,
+                        apiClient: deviceProvider.apiClient,
+                      ),
+                    ),
+                    icon: const Icon(Icons.download_rounded, size: 16),
+                    label: const Text('Export Telemetry (CSV / PDF)'),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: AppColors.primaryOrange,
+                      foregroundColor: Colors.white,
+                      minimumSize: const Size.fromHeight(40),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      elevation: 0,
+                    ),
                   ),
                   if (isOffline) ...[
                     const SizedBox(height: 10),

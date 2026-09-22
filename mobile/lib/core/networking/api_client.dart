@@ -92,6 +92,50 @@ class ApiClient {
 
   static const Duration _timeoutDuration = Duration(seconds: 15);
 
+  Future<http.Response> getBytes(
+    String endpoint, {
+    Map<String, String>? queryParameters,
+    bool requiresAuth = true,
+  }) async {
+    final uri = _buildUri(endpoint, queryParameters);
+    final headers = await _getHeaders(requiresAuth: requiresAuth);
+    headers['Accept'] = '*/*';
+
+    try {
+      final response = await _httpClient.get(uri, headers: headers).timeout(_timeoutDuration);
+      if (response.statusCode == 401) {
+        onUnauthorized?.call();
+        throw UnauthorizedException();
+      }
+
+      if (response.statusCode >= 200 && response.statusCode < 300) {
+        return response;
+      }
+
+      String errorMessage = 'Download failed (${response.statusCode})';
+      if (response.body.isNotEmpty) {
+        try {
+          final json = jsonDecode(response.body);
+          if (json is Map<String, dynamic>) {
+            if (json.containsKey('error') && json['error'] is Map) {
+              errorMessage = json['error']['message'] ?? errorMessage;
+            } else if (json.containsKey('message')) {
+              errorMessage = json['message'];
+            }
+          }
+        } catch (_) {}
+      }
+
+      throw ApiException(
+        message: errorMessage,
+        statusCode: response.statusCode,
+      );
+    } catch (e) {
+      if (e is ApiException) rethrow;
+      throw ApiException(message: 'Network request failed: $e');
+    }
+  }
+
   Future<dynamic> get(
     String endpoint, {
     Map<String, String>? queryParameters,
